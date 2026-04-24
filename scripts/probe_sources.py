@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Probe v2: confirm BSE pagination, SCRIP_CD->ticker lookup, and screener page reachability.
-Drives the architecture choice for the daily cloud refresh.
+Probe screener page structure from GH Actions to finalize the parser.
+Output: row labels found in the #quarters table, sample cells,
+and a minimal hand-parsed extraction for sanity check.
 """
 import json
+import re
 import sys
 import time
 import requests
@@ -13,136 +15,86 @@ UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
-BSE_H = {
-    "User-Agent": UA,
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.bseindia.com/",
-    "Origin": "https://www.bseindia.com",
-}
-
-
-def get(url, headers=None, timeout=20):
-    h = {"User-Agent": UA}
-    if headers:
-        h.update(headers)
-    t = time.time()
-    try:
-        r = requests.get(url, headers=h, timeout=timeout)
-        dt = time.time() - t
-        return r, dt, None
-    except Exception as e:
-        return None, time.time() - t, e
+H = {"User-Agent": UA, "Accept": "text/html,*/*", "Accept-Language": "en-US,en;q=0.9"}
 
 
 def section(title):
     print(f'\n=== {title} ===', flush=True)
 
 
+def strip_tags(s):
+    return re.sub(r'<[^>]+>', '', s).strip()
+
+
+def parse_quarters(html, company_label):
+    # Look for the quarters section
+    m = re.search(r'id="quarters"[\s\S]*?</section>', html)
+    if not m:
+        print(f'  {company_label}: NO quarters section', flush=True)
+        return
+    q = m.group(0)
+    # headers
+    thead = re.search(r'<thead[\s\S]*?</thead>', q)
+    if thead:
+        hdrs = [strip_tags(x) for x in re.findall(r'<th[^>]*>([\s\S]*?)</th>', thead.group(0))]
+        print(f'  {company_label}: headers={hdrs}', flush=True)
+    # rows
+    tbody = re.search(r'<tbody[\s\S]*?</tbody>', q)
+    if not tbody:
+        print(f'  {company_label}: NO tbody', flush=True)
+        return
+    rows = re.findall(r'<tr[^>]*>([\s\S]*?)</tr>', tbody.group(0))
+    print(f'  {company_label}: row_count={len(rows)}', flush=True)
+    for ri, row in enumerate(rows):
+        cells = re.findall(r'<t[dh][^>]*>([\s\S]*?)</t[dh]>', row)
+        cells = [strip_tags(c) for c in cells]
+        if cells:
+            label = cells[0]
+            vals = cells[1:]
+            if ri < 12:  # print first 12 rows
+                print(f'    r{ri}: {label!r} -> {vals[-5:]}', flush=True)
+
+
+def page_meta(html, company_label):
+    # market cap
+    mcap = re.search(r'Market Cap[\s\S]{0,200}?<span[^>]*class="number"[^>]*>([^<]+)</span>', html)
+    # current price (first "Current Price" number)
+    price = re.search(r'Current Price[\s\S]{0,200}?<span[^>]*class="number"[^>]*>([^<]+)</span>', html)
+    pe = re.search(r'Stock P/E[\s\S]{0,200}?<span[^>]*class="number"[^>]*>([^<]+)</span>', html)
+    name = re.search(r'<h1[^>]*>\s*([^<]+)\s*</h1>', html)
+    print(f'  {company_label}: name={name.group(1).strip() if name else None!r}', flush=True)
+    print(f'  {company_label}: price={price.group(1).strip() if price else None!r} '
+          f'mcap={mcap.group(1).strip() if mcap else None!r} '
+          f'pe={pe.group(1).strip() if pe else None!r}', flush=True)
+
+
+def probe_company(slug):
+    section(f'Screener /company/{slug}/')
+    for path in (f'/company/{slug}/consolidated/', f'/company/{slug}/'):
+        url = f'https://www.screener.in{path}'
+        try:
+            r = requests.get(url, headers=H, timeout=25)
+        except Exception as e:
+            print(f'  {slug} {path} ERR {e!r}', flush=True)
+            continue
+        if r.status_code != 200:
+            print(f'  {slug} {path} status={r.status_code}', flush=True)
+            continue
+        html = r.text
+        print(f'  {slug} {path} status=200 len={len(html)}', flush=True)
+        page_meta(html, slug)
+        parse_quarters(html, slug)
+        break
+
+
 def main():
-    # 1) BSE AnnSubCategory pagination: walk pages until empty, count unique SCRIP_CDs
-    section('BSE pagination (all Q4 result filings since 2026-03-01)')
-    all_rows = []
-    for p in range(1, 20):
-        u = (
-            'https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryGetData/w'
-            f'?pageno={p}&strCat=Result&strPrevDate=20260301'
-            f'&strScrip=&strSearch=P&strToDate=20260424'
-            '&strType=C&subcategory=Financial%20Results'
-        )
-        r, dt, err = get(u, BSE_H)
-        if err:
-            print(f'  page{p} ERROR {err!r}', flush=True)
-            break
-        try:
-            j = r.json()
-        except Exception as e:
-            print(f'  page{p} json_err={e}', flush=True)
-            break
-        tbl = j.get('Table') or []
-        print(f'  page{p} rows={len(tbl)} dt={dt:.2f}s', flush=True)
-        all_rows.extend(tbl)
-        if len(tbl) < 50:  # last page
-            break
-        time.sleep(0.3)
-    codes = {str(r.get('SCRIP_CD')): r.get('HEADLINE', '')[:60] for r in all_rows}
-    print(f'  TOTAL_rows={len(all_rows)} unique_scrip_cd={len(codes)}', flush=True)
-    sample = list(codes.items())[:5]
-    for cd, hl in sample:
-        print(f'  {cd}: {hl}', flush=True)
-    pick = list(codes.keys())[:3]
-
-    # 2) BSE ComHeader/ComHead: SCRIP_CD -> SCRIP_ID (ticker)
-    section('BSE SCRIP_CD -> SCRIP_ID')
-    for cd in pick:
-        for endpoint in ('ComHeaderNew/w', 'ComHeadernew/w', 'ComHeader/w', 'ComHead/w'):
-            u = f'https://api.bseindia.com/BseIndiaAPI/api/{endpoint}?quotetype=EQ&scripcode={cd}&seriesid='
-            r, dt, err = get(u, BSE_H, timeout=15)
-            if err:
-                print(f'  {cd} {endpoint} ERROR {err!r}', flush=True)
-                continue
-            try:
-                j = r.json()
-                keys = list(j.keys())[:10] if isinstance(j, dict) else '(list)'
-                # common shapes
-                sid = None
-                if isinstance(j, dict):
-                    sid = j.get('scrip_id') or j.get('ScripID') or j.get('SCRIP_ID') or j.get('SC_ID')
-                    if not sid:
-                        cd2 = j.get('CompanyMaster') or j.get('Data') or []
-                        if isinstance(cd2, list) and cd2:
-                            sid = cd2[0].get('scrip_id') or cd2[0].get('SC_ID')
-                print(f'  {cd} {endpoint} status={r.status_code} sid={sid!r} keys={keys}', flush=True)
-                if sid:
-                    break
-            except Exception as e:
-                print(f'  {cd} {endpoint} json_err={e} status={r.status_code}', flush=True)
-
-    # 3) Alternate: BSE scrip master list (cached once)
-    section('BSE scrip master (all BSE equities)')
-    u = 'https://api.bseindia.com/BseIndiaAPI/api/ListOfScripCodeNewFormat/w?Group=&Scripcode=&industry=&segment=Equity&status=Active'
-    r, dt, err = get(u, BSE_H, timeout=30)
-    if err:
-        print(f'  ERROR {err!r}', flush=True)
-    else:
-        try:
-            j = r.json()
-            if isinstance(j, list):
-                print(f'  status={r.status_code} len={len(j)} keys[0]={list(j[0].keys())[:10] if j else None}', flush=True)
-            else:
-                print(f'  status={r.status_code} not_list type={type(j).__name__}', flush=True)
-        except Exception as e:
-            print(f'  json_err={e} status={r.status_code} text_len={len(r.text)}', flush=True)
-
-    # 4) Screener per-company page (pick a known existing slug)
-    section('Screener per-company page (HDFCBANK)')
-    u = 'https://www.screener.in/company/HDFCBANK/'
-    r, dt, err = get(u, {'User-Agent': UA, 'Accept': 'text/html'}, timeout=25)
-    if err:
-        print(f'  ERROR {err!r}', flush=True)
-    else:
-        body = r.text
-        print(f'  status={r.status_code} len={len(body)}', flush=True)
-        markers = {
-            'Quarterly_Results': 'Quarterly Results' in body,
-            'Compounded_Sales': 'Compounded Sales' in body,
-            'Market_Cap': 'Market Cap' in body,
-            'Cloudflare': 'cloudflare' in body.lower() or 'cf-ray' in body.lower(),
-        }
-        print(f'  markers={markers}', flush=True)
-
-    # 5) Screener /results/latest/ pagination check
-    section('Screener results latest — count company links')
-    u = 'https://www.screener.in/results/latest/?page=1'
-    r, dt, err = get(u, {'User-Agent': UA, 'Accept': 'text/html'}, timeout=25)
-    if err:
-        print(f'  ERROR {err!r}', flush=True)
-    else:
-        body = r.text
-        # count unique /company/SLUG/ occurrences
-        import re
-        slugs = set(re.findall(r'/company/([A-Z0-9\-&]+)/', body))
-        print(f'  status={r.status_code} len={len(body)} unique_company_slugs={len(slugs)}', flush=True)
-        print(f'  sample_slugs={list(slugs)[:8]}', flush=True)
+    # Three companies: well-known (HDFCBANK), mid-cap (EMAPARTNER),
+    # numeric-slug (513119 = Onix Solar).
+    probe_company('HDFCBANK')
+    time.sleep(0.5)
+    probe_company('EMAPARTNER')
+    time.sleep(0.5)
+    probe_company('513119')
 
 
 if __name__ == '__main__':
