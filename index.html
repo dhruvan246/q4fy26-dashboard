@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Q4 FY26 Results — Sorted by PAT % Growth</title>
+<style>
+  :root {
+    --bg: #000000;
+    --card: #ffffff;
+    --border: #dfe3eb;
+    --text: #0f172a;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+    --accent-orange: #6366f1; /* indigo accent */
+    --metric-bg: #f1f5f9;
+    --green: #059669;
+    --green-dark: #047857;
+    --red: #e11d48;
+    --red-dark: #be123c;
+    --bg-text: #e5e7eb;
+    --bg-text-muted: #cbd5e1;
+    --bg-text-dim: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--bg-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1480px; margin: 0 auto; padding: 24px 28px 60px; }
+  .banner {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .banner .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1e1b4b; color: #c7d2fe;
+    border: 1px solid #4338ca;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
+  }
+  .banner .pill svg { width: 12px; height: 12px; fill: #c7d2fe; }
+  .banner .caption { color: var(--bg-text-muted); font-size: 13px; }
+  .banner .caption b { color: #ffffff; font-weight: 700; }
+  .banner .date {
+    margin-left: auto;
+    color: var(--bg-text-dim); font-size: 12px;
+  }
+  .sort-box {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #111827; border: 1px solid #374151; border-radius: 8px;
+    padding: 6px 10px;
+    margin-left: 8px;
+  }
+  .sort-box label {
+    font-size: 12px; color: #94a3b8; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .sort-box select {
+    border: none; background: transparent; outline: none;
+    font-size: 13px; font-weight: 700; color: #ffffff;
+    cursor: pointer; padding: 2px 4px;
+  }
+  .sort-box select option { background: #111827; color: #ffffff; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
+  @media (max-width: 1400px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 1100px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 820px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px)  { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent-orange);
+    border-radius: 10px;
+    padding: 16px 16px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+    position: relative;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(99, 102, 241, 0.25), 0 2px 4px rgba(0, 0, 0, 0.5); }
+  .card.neg { border-top-color: var(--red); }
+  .rank {
+    position: absolute; top: -10px; left: 14px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 3px 7px; border-radius: 999px;
+    letter-spacing: 0.4px;
+  }
+  .meta .sector-tag {
+    display: inline-block;
+    background: #eef2ff;
+    color: #4338ca;
+    font-weight: 600;
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid #c7d2fe;
+  }
+  .head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+  }
+  .head .name {
+    font-weight: 700; font-size: 15.5px; color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .head .name a { color: inherit; text-decoration: none; }
+  .head .name a:hover { text-decoration: underline; }
+  .head .price-wrap { text-align: right; }
+  .head .price { font-weight: 700; font-size: 15.5px; color: var(--text); }
+  .head .mcap { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+  .meta {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    color: var(--muted); font-size: 11.5px;
+    padding-bottom: 2px;
+  }
+  .meta span b { color: var(--text); font-weight: 600; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .metric {
+    background: var(--metric-bg);
+    border-radius: 6px;
+    padding: 9px 11px 10px;
+  }
+  .metric.pat {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+  }
+  .metric.pat.neg {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+  }
+  .metric .label {
+    color: var(--muted-2);
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .metric .val {
+    font-size: 16px; font-weight: 700;
+    color: var(--green-dark);
+    line-height: 1.1;
+  }
+  .metric .val.neg { color: var(--red-dark); }
+  .metric .val.flat { color: var(--muted); }
+  .metric .sub {
+    color: var(--muted);
+    font-size: 11px; margin-top: 3px;
+  }
+  .metric.stockmove {
+    grid-column: 1 / -1;
+    background: #fefce8;
+    border: 1px solid #fde68a;
+  }
+  .metric.stockmove.pat { background: #ecfdf5; border-color: #a7f3d0; }
+  .metric.stockmove.pat.neg { background: #fff1f2; border-color: #fecdd3; }
+
+  .commentary {
+    color: var(--text);
+    font-size: 12.5px;
+    line-height: 1.45;
+    padding-top: 4px;
+    border-top: 1px dashed var(--border);
+    margin-top: 2px;
+  }
+  .commentary b { color: #111; }
+
+  .source {
+    color: var(--bg-text-dim); font-size: 11px;
+    margin-top: 22px; text-align: right;
+  }
+  .source a { color: var(--bg-text-muted); text-decoration: none; border-bottom: 1px dotted #475569; }
+
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-top: 6px; font-size: 11.5px; color: var(--bg-text-muted);
+  }
+  .legend .dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+    vertical-align: middle; margin-right: 5px;
+  }
+  .legend .dot.up { background: var(--green); }
+  .legend .dot.dn { background: var(--red); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="banner">
+    <span class="pill" id="sortPill">
+      <svg viewBox="0 0 24 24" fill="#1e4fb3" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 17l6-6 4 4 8-8v3h2V3h-7v2h3l-6 6-4-4-8 8z"/>
+      </svg>
+      <span id="sortPillText">SORTED BY PAT % ↓</span>
+    </span>
+    <span class="caption"><b id="count">0 companies</b> — Q4 FY26 (Mar 2026) quarterly results, ranked by <span id="sortCaption">Net Profit YoY growth</span></span>
+    <a href="latest_news_dashboard.html" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid #3730a3;border-radius:999px;background:linear-gradient(90deg,#4338ca,#6366f1);color:#fff;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(99,102,241,.35);white-space:nowrap">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f87171;box-shadow:0 0 0 4px rgba(248,113,113,.3)"></span>
+      Latest News →
+    </a>
+    <span class="sort-box">
+      <label for="sortSel">Sort by</label>
+      <select id="sortSel">
+        <option value="pat" selected>Net Profit (PAT) %</option>
+        <option value="sales">Sales %</option>
+        <option value="ebidt">EBIDT %</option>
+        <option value="eps">EPS %</option>
+        <option value="stockMove">Stock Move %</option>
+      </select>
+    </span>
+    <span class="sort-box">
+      <label for="mcapSel">Market Cap</label>
+      <select id="mcapSel">
+        <option value="all" selected>All</option>
+        <option value="<100">Below 100 Cr</option>
+        <option value="100-500">101 Cr to 500 Cr</option>
+        <option value="500-1000">501 Cr to 1000 Cr</option>
+        <option value="1000-5000">1001 Cr to 5000 Cr</option>
+        <option value="5000-10000">5000 Cr to 10000 Cr</option>
+        <option value="10000-100000">10000 Cr to 100000 Cr</option>
+        <option value="100000+">100000 Cr and above</option>
+      </select>
+    </span>
+    <span class="sort-box">
+      <label for="sectorSel">Sector</label>
+      <select id="sectorSel">
+        <option value="all" selected>All</option>
+        <option value="Banking &amp; Finance">Banking &amp; Finance</option>
+        <option value="Insurance">Insurance</option>
+        <option value="Asset Mgmt &amp; Broking">Asset Mgmt &amp; Broking</option>
+        <option value="IT &amp; Software">IT &amp; Software</option>
+        <option value="Media &amp; Entertainment">Media &amp; Entertainment</option>
+        <option value="FMCG &amp; Consumer">FMCG &amp; Consumer</option>
+        <option value="Food &amp; Agri">Food &amp; Agri</option>
+        <option value="Capital Goods &amp; Engineering">Capital Goods &amp; Engineering</option>
+        <option value="Chemicals &amp; Fertilizers">Chemicals &amp; Fertilizers</option>
+        <option value="Auto &amp; Engines">Auto &amp; Engines</option>
+        <option value="Cement">Cement</option>
+        <option value="Textiles">Textiles</option>
+        <option value="Telecom">Telecom</option>
+        <option value="Infrastructure &amp; Real Estate">Infrastructure &amp; Real Estate</option>
+        <option value="Power &amp; Renewables">Power &amp; Renewables</option>
+        <option value="Retail &amp; Durables">Retail &amp; Durables</option>
+        <option value="Other">Other</option>
+      </select>
+    </span>
+    <span class="date">Refreshed 24 Apr 2026 · last trading day 24 Apr 2026 · Jan–Mar 2026</span>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot up"></span>Green card = PAT growth positive</span>
+    <span><span class="dot dn"></span>Red card = PAT growth negative</span>
+    <span>★ Click company name to open its screener.in page</span>
+  </div>
+
+  <div class="grid" id="grid" style="margin-top:14px;"></div>
+
+  <div class="source">Source: <a href="https://www.screener.in/results/latest/?all=" target="_blank">screener.in/results/latest</a> · Q4 FY26 results fetched 24 Apr 2026 (145 companies) · stock moves refreshed 24 Apr 2026 (last close 24 Apr 2026)</div>
+</div>
+
+<script>
+const COMPANIES = [{"name":"Onix Solar","link":"https://www.screener.in/company/513119/#quarters","price":"1,022","mcap":"2,562","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 202%","latest":"70.3","yearAgo":"23.3"},"ebidt":{"pct":"⇡ 4135%","latest":"25.4","yearAgo":"0.6"},"np":{"pct":"⇡ 3911%","latest":"25.7","yearAgo":"0.64"},"eps":{"pct":"⇡ 284%","latest":"₹ 10.24","yearAgo":"₹ 2.67"},"patPct":3911},{"name":"Kesar India","link":"https://www.screener.in/company/543542/#quarters","price":"1,237","mcap":"3,534","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 109%","latest":"84.8","yearAgo":"40.6"},"ebidt":{"pct":"⇡ 530%","latest":"20","yearAgo":"3.18"},"np":{"pct":"⇡ 809%","latest":"14.5","yearAgo":"1.6"},"eps":{"pct":"⇡ 683%","latest":"₹ 5.09","yearAgo":"₹ 0.65"},"patPct":809},{"name":"Media Matrix","link":"https://www.screener.in/company/MMWL/consolidated/#quarters","price":"10.4","mcap":"1,174","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 11%","latest":"301","yearAgo":"272"},"ebidt":{"pct":"⇡ 1%","latest":"5.41","yearAgo":"5.38"},"np":{"pct":"⇡ 805%","latest":"2.08","yearAgo":"-0.48"},"eps":{"pct":"⇡ 0%","latest":"₹ 0.01","yearAgo":"₹ 0"},"patPct":805},{"name":"Nikki Glob.Fin.","link":"https://www.screener.in/company/531272/#quarters","price":"21.6","mcap":"7","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0.4","yearAgo":"0"},"ebidt":{"pct":"⇡ 800%","latest":"0.35","yearAgo":"-0.05"},"np":{"pct":"⇡ 720%","latest":"0.31","yearAgo":"-0.05"},"eps":{"pct":"⇡ 707%","latest":"₹ 0.91","yearAgo":"₹ -0.15"},"patPct":720},{"name":"Yuranus Infrast.","link":"https://www.screener.in/company/536846/#quarters","price":"137","mcap":"48","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 61%","latest":"6.07","yearAgo":"3.78"},"ebidt":{"pct":"⇡ 1033%","latest":"1.12","yearAgo":"-0.12"},"np":{"pct":"⇡ 600%","latest":"0.8","yearAgo":"-0.16"},"eps":{"pct":"⇡ 598%","latest":"₹ 2.29","yearAgo":"₹ -0.46"},"patPct":600},{"name":"Mahindra Logis.","link":"https://www.screener.in/company/MAHLOG/consolidated/#quarters","price":"416","mcap":"4,133","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 14%","latest":"1791","yearAgo":"1570"},"ebidt":{"pct":"⇡ 45%","latest":"112","yearAgo":"77.7"},"np":{"pct":"⇡ 399%","latest":"22.4","yearAgo":"-5.29"},"eps":{"pct":"⇡ 399%","latest":"₹ 2.03","yearAgo":"₹ -0.68"},"patPct":399},{"name":"M B Agro Prod.","link":"https://www.screener.in/company/MBAPL/consolidated/#quarters","price":"509","mcap":"4,457","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 33%","latest":"395","yearAgo":"297"},"ebidt":{"pct":"⇡ 14%","latest":"41.2","yearAgo":"36.1"},"np":{"pct":"⇡ 319%","latest":"59.8","yearAgo":"14.2"},"eps":{"pct":"⇡ 318%","latest":"₹ 6.82","yearAgo":"₹ 1.63"},"patPct":319},{"name":"Alka India","link":"https://www.screener.in/company/530889/#quarters","price":"20.9","mcap":"10","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"2.5","yearAgo":"0"},"ebidt":{"pct":"⇡ 313%","latest":"0.81","yearAgo":"-0.38"},"np":{"pct":"⇡ 316%","latest":"0.82","yearAgo":"-0.38"},"eps":{"pct":"⇡ 16500%","latest":"₹ 1.64","yearAgo":"₹ -0.01"},"patPct":316},{"name":"Ganesh Holdings","link":"https://www.screener.in/company/504397/#quarters","price":"88.0","mcap":"8","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 1200%","latest":"0.39","yearAgo":"0.03"},"ebidt":{"pct":"⇡ 255%","latest":"0.34","yearAgo":"-0.22"},"np":{"pct":"⇡ 255%","latest":"0.34","yearAgo":"-0.22"},"eps":{"pct":"⇡ 255%","latest":"₹ 3.82","yearAgo":"₹ -2.47"},"patPct":255},{"name":"Jindal Leasefin","link":"https://www.screener.in/company/539947/#quarters","price":"66.4","mcap":"20","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 248%","latest":"2.48","yearAgo":"-1.67"},"ebidt":{"pct":"⇡ 238%","latest":"2.38","yearAgo":"-1.73"},"np":{"pct":"⇡ 195%","latest":"1.18","yearAgo":"-1.24"},"eps":{"pct":"⇡ 195%","latest":"₹ 3.92","yearAgo":"₹ -4.12"},"patPct":195},{"name":"Bridge Securitie","link":"https://www.screener.in/company/530249/#quarters","price":"15.8","mcap":"61","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0.8","yearAgo":"0"},"ebidt":{"pct":"⇡ 1340%","latest":"0.62","yearAgo":"-0.05"},"np":{"pct":"⇡ 181%","latest":"0.39","yearAgo":"-0.48"},"eps":{"pct":"⇡ 183%","latest":"₹ 0.1","yearAgo":"₹ -0.12"},"patPct":181},{"name":"Navkar Corporat.","link":"https://www.screener.in/company/NAVKARCORP/consolidated/#quarters","price":"99.2","mcap":"1,494","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 93%","latest":"201","yearAgo":"104"},"ebidt":{"pct":"⇡ 314%","latest":"39.8","yearAgo":"-18.6"},"np":{"pct":"⇡ 175%","latest":"14","yearAgo":"-18.5"},"eps":{"pct":"⇡ 176%","latest":"₹ 0.93","yearAgo":"₹ -1.23"},"patPct":175},{"name":"Punctual Trading","link":"https://www.screener.in/company/512461/#quarters","price":"-","mcap":"-","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇡ 91%","latest":"-0.09","yearAgo":"-0.96"},"np":{"pct":"⇡ 169%","latest":"0.38","yearAgo":"-0.55"},"eps":{"pct":"","latest":"₹ None","yearAgo":"₹ None"},"patPct":169},{"name":"Bluestone Jewel","link":"https://www.screener.in/company/BLUESTONE/consolidated/#quarters","price":"536","mcap":"8,157","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 48%","latest":"681","yearAgo":"461"},"ebidt":{"pct":"⇡ 396%","latest":"124","yearAgo":"25.1"},"np":{"pct":"⇡ 163%","latest":"31.2","yearAgo":"-51.3"},"eps":{"pct":"⇡ 114%","latest":"₹ 2.1","yearAgo":"₹ -14.51"},"patPct":163},{"name":"Prizor Viztech","link":"https://www.screener.in/company/PRIZOR/consolidated/#quarters","price":"593","mcap":"634","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 164%","latest":"106","yearAgo":"40.1"},"ebidt":{"pct":"⇡ 176%","latest":"23.7","yearAgo":"8.56"},"np":{"pct":"⇡ 153%","latest":"14.8","yearAgo":"5.87"},"eps":{"pct":"⇡ 153%","latest":"₹ 13.88","yearAgo":"₹ 5.49"},"patPct":153},{"name":"Krishana Phosch.","link":"https://www.screener.in/company/KRISHANA/consolidated/#quarters","price":"636","mcap":"3,848","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 60%","latest":"755","yearAgo":"473"},"ebidt":{"pct":"⇡ 59%","latest":"89.5","yearAgo":"56.3"},"np":{"pct":"⇡ 153%","latest":"83.1","yearAgo":"32.9"},"eps":{"pct":"⇡ 153%","latest":"₹ 13.72","yearAgo":"₹ 5.43"},"patPct":153},{"name":"Sterling & Wils.","link":"https://www.screener.in/company/SWSOLAR/consolidated/#quarters","price":"213","mcap":"4,975","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 23%","latest":"1946","yearAgo":"2519"},"ebidt":{"pct":"⇡ 9%","latest":"146","yearAgo":"134"},"np":{"pct":"⇡ 143%","latest":"142","yearAgo":"55"},"eps":{"pct":"⇡ 143%","latest":"₹ 5.76","yearAgo":"₹ 2.37"},"patPct":143},{"name":"NELCO","link":"https://www.screener.in/company/NELCO/consolidated/#quarters","price":"666","mcap":"1,520","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 17%","latest":"79.2","yearAgo":"67.5"},"ebidt":{"pct":"⇣ 15%","latest":"5.47","yearAgo":"6.44"},"np":{"pct":"⇡ 127%","latest":"1.09","yearAgo":"-4.08"},"eps":{"pct":"⇡ 127%","latest":"₹ 0.48","yearAgo":"₹ -1.79"},"patPct":127},{"name":"Anand Rathi Shar","link":"https://www.screener.in/company/ARSSBL/consolidated/#quarters","price":"571","mcap":"3,601","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 28%","latest":"255","yearAgo":"199"},"ebidt":{"pct":"⇡ 51%","latest":"111","yearAgo":"73.1"},"np":{"pct":"⇡ 125%","latest":"42","yearAgo":"18.6"},"eps":{"pct":"⇡ 59%","latest":"₹ 6.69","yearAgo":"₹ 4.2"},"patPct":125},{"name":"Billionbrains","link":"https://www.screener.in/company/GROWW/consolidated/#quarters","price":"217","mcap":"136,325","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 88%","latest":"1505","yearAgo":"801"},"ebidt":{"pct":"⇡ 142%","latest":"938","yearAgo":"388"},"np":{"pct":"⇡ 122%","latest":"686","yearAgo":"309"},"eps":{"pct":"⇣ 36%","latest":"₹ 1.09","yearAgo":"₹ 1.69"},"patPct":122},{"name":"VST Industries","link":"https://www.screener.in/company/VSTIND/consolidated/#quarters","price":"257","mcap":"4,365","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 31%","latest":"457","yearAgo":"349"},"ebidt":{"pct":"⇡ 200%","latest":"208","yearAgo":"69.5"},"np":{"pct":"⇡ 120%","latest":"117","yearAgo":"53"},"eps":{"pct":"⇡ 120%","latest":"₹ 6.87","yearAgo":"₹ 3.12"},"patPct":120},{"name":"Lloyds Luxuries","link":"https://www.screener.in/company/LLOYDS/consolidated/#quarters","price":"97.0","mcap":"234","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 36%","latest":"33.2","yearAgo":"24.4"},"ebidt":{"pct":"⇡ 164%","latest":"1.68","yearAgo":"-2.64"},"np":{"pct":"⇡ 108%","latest":"0.36","yearAgo":"-4.78"},"eps":{"pct":"⇡ 108%","latest":"₹ 0.15","yearAgo":"₹ -2"},"patPct":108},{"name":"Bajaj Consumer","link":"https://www.screener.in/company/BAJAJCON/consolidated/#quarters","price":"455","mcap":"5,940","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 30%","latest":"327","yearAgo":"250"},"ebidt":{"pct":"⇡ 140%","latest":"76.5","yearAgo":"31.9"},"np":{"pct":"⇡ 105%","latest":"63.6","yearAgo":"31"},"eps":{"pct":"⇡ 115%","latest":"₹ 4.87","yearAgo":"₹ 2.26"},"patPct":105},{"name":"Purple Finance","link":"https://www.screener.in/company/544191/#quarters","price":"68.0","mcap":"400","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 172%","latest":"17","yearAgo":"6.25"},"ebidt":{"pct":"⇡ 267%","latest":"4.52","yearAgo":"-2.7"},"np":{"pct":"⇡ 101%","latest":"0.02","yearAgo":"-3.92"},"eps":{"pct":"⇡ 100%","latest":"₹ 0","yearAgo":"₹ -0.72"},"patPct":101},{"name":"Adit.Birla Money","link":"https://www.screener.in/company/BIRLAMONEY/consolidated/#quarters","price":"141","mcap":"795","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 30%","latest":"130","yearAgo":"99.5"},"ebidt":{"pct":"⇡ 31%","latest":"65.1","yearAgo":"49.7"},"np":{"pct":"⇡ 101%","latest":"18.7","yearAgo":"9.33"},"eps":{"pct":"⇡ 101%","latest":"₹ 3.31","yearAgo":"₹ 1.65"},"patPct":101},{"name":"Wherrelz IT","link":"https://www.screener.in/company/543436/#quarters","price":"157","mcap":"6","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 192%","latest":"6.86","yearAgo":"-7.45"},"ebidt":{"pct":"⇡ 100%","latest":"-0.03","yearAgo":"-9.19"},"np":{"pct":"⇡ 100%","latest":"-0.01","yearAgo":"-9.2"},"eps":{"pct":"⇡ 100%","latest":"₹ -0.26","yearAgo":"₹ -236.14"},"patPct":100},{"name":"Nilachal Refract","link":"https://www.screener.in/company/502294/#quarters","price":"38.5","mcap":"78","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 36%","latest":"0.49","yearAgo":"0.36"},"ebidt":{"pct":"⇡ 97%","latest":"-0.53","yearAgo":"-19.9"},"np":{"pct":"⇡ 98%","latest":"-0.36","yearAgo":"-19.9"},"eps":{"pct":"⇡ 98%","latest":"₹ -0.18","yearAgo":"₹ -9.79"},"patPct":98},{"name":"Tips Music","link":"https://www.screener.in/company/TIPSMUSIC/consolidated/#quarters","price":"676","mcap":"8,645","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 32%","latest":"104","yearAgo":"78.5"},"ebidt":{"pct":"⇡ 106%","latest":"76.9","yearAgo":"37.3"},"np":{"pct":"⇡ 93%","latest":"59.1","yearAgo":"30.6"},"eps":{"pct":"⇡ 93%","latest":"₹ 4.62","yearAgo":"₹ 2.39"},"patPct":93},{"name":"Bombay Wire","link":"https://www.screener.in/company/504648/#quarters","price":"48.0","mcap":"26","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇡ 32%","latest":"-0.19","yearAgo":"-0.28"},"np":{"pct":"⇡ 93%","latest":"-0.06","yearAgo":"-0.92"},"eps":{"pct":"⇡ 94%","latest":"₹ -0.11","yearAgo":"₹ -1.72"},"patPct":93},{"name":"GSM Foils","link":"https://www.screener.in/company/GSMFOILS/consolidated/#quarters","price":"197","mcap":"277","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 79%","latest":"81.7","yearAgo":"45.6"},"ebidt":{"pct":"⇡ 63%","latest":"9.43","yearAgo":"5.8"},"np":{"pct":"⇡ 84%","latest":"6.28","yearAgo":"3.42"},"eps":{"pct":"⇡ 84%","latest":"₹ 4.46","yearAgo":"₹ 2.43"},"patPct":84},{"name":"Angel One","link":"https://www.screener.in/company/ANGELONE/consolidated/#quarters","price":"310","mcap":"28,269","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 38%","latest":"1459","yearAgo":"1056"},"ebidt":{"pct":"⇡ 75%","latest":"599","yearAgo":"343"},"np":{"pct":"⇡ 84%","latest":"320","yearAgo":"175"},"eps":{"pct":"⇡ 82%","latest":"₹ 3.52","yearAgo":"₹ 1.93"},"patPct":84},{"name":"SG Finserve","link":"https://www.screener.in/company/SGFIN/consolidated/#quarters","price":"536","mcap":"3,535","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 95%","latest":"105","yearAgo":"54.1"},"ebidt":{"pct":"⇡ 99%","latest":"99.1","yearAgo":"49.8"},"np":{"pct":"⇡ 78%","latest":"42.3","yearAgo":"23.8"},"eps":{"pct":"⇡ 52%","latest":"₹ 6.48","yearAgo":"₹ 4.26"},"patPct":78},{"name":"P. H. Capital","link":"https://www.screener.in/company/500143/#quarters","price":"707","mcap":"212","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 34%","latest":"22.2","yearAgo":"33.4"},"ebidt":{"pct":"⇡ 71%","latest":"-2.46","yearAgo":"-8.57"},"np":{"pct":"⇡ 76%","latest":"-1.6","yearAgo":"-6.71"},"eps":{"pct":"⇡ 76%","latest":"₹ -5.33","yearAgo":"₹ -22.37"},"patPct":76},{"name":"Tata Inv.Corpn.","link":"https://www.screener.in/company/TATAINVEST/consolidated/#quarters","price":"703","mcap":"35,568","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 143%","latest":"40","yearAgo":"16.4"},"ebidt":{"pct":"⇡ 300%","latest":"29.6","yearAgo":"7.39"},"np":{"pct":"⇡ 69%","latest":"63.8","yearAgo":"37.7"},"eps":{"pct":"⇡ 68%","latest":"₹ 1.26","yearAgo":"₹ 0.75"},"patPct":69},{"name":"ICICI Pru Life","link":"https://www.screener.in/company/ICICIPRULI/consolidated/#quarters","price":"521","mcap":"75,510","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 80%","latest":"3185","yearAgo":"15687"},"ebidt":{"pct":"⇣ 282%","latest":"-754","yearAgo":"415"},"np":{"pct":"⇡ 62%","latest":"624","yearAgo":"385"},"eps":{"pct":"⇡ 61%","latest":"₹ 4.3","yearAgo":"₹ 2.67"},"patPct":62},{"name":"Ind Bank Housing","link":"https://www.screener.in/company/523465/#quarters","price":"45.1","mcap":"45","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇣ 64%","latest":"-0.23","yearAgo":"-0.14"},"np":{"pct":"⇡ 60%","latest":"-0.02","yearAgo":"-0.05"},"eps":{"pct":"⇡ 60%","latest":"₹ -0.02","yearAgo":"₹ -0.05"},"patPct":60},{"name":"CRISIL","link":"https://www.screener.in/company/CRISIL/consolidated/#quarters","price":"4,319","mcap":"31,583","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 30%","latest":"1058","yearAgo":"813"},"ebidt":{"pct":"⇡ 37%","latest":"319","yearAgo":"232"},"np":{"pct":"⇡ 46%","latest":"233","yearAgo":"160"},"eps":{"pct":"⇡ 46%","latest":"₹ 31.9","yearAgo":"₹ 21.86"},"patPct":46},{"name":"Yes Bank","link":"https://www.screener.in/company/YESBANK/consolidated/#quarters","price":"19.9","mcap":"62,352","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 1%","latest":"7662","yearAgo":"7623"},"ebidt":{"pct":"⇡ 3%","latest":"4663","yearAgo":"4543"},"np":{"pct":"⇡ 45%","latest":"1082","yearAgo":"745"},"eps":{"pct":"⇡ 42%","latest":"₹ 0.34","yearAgo":"₹ 0.24"},"patPct":45},{"name":"Tata Capital","link":"https://www.screener.in/company/TATACAP/consolidated/#quarters","price":"338","mcap":"143,455","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 9%","latest":"8160","yearAgo":"7478"},"ebidt":{"pct":"⇡ 13%","latest":"6134","yearAgo":"5406"},"np":{"pct":"⇡ 43%","latest":"1466","yearAgo":"1000"},"eps":{"pct":"⇡ 28%","latest":"₹ 3.54","yearAgo":"₹ 2.77"},"patPct":43},{"name":"HDB FINANC SER","link":"https://www.screener.in/company/HDBFS/consolidated/#quarters","price":"656","mcap":"54,478","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 11%","latest":"4745","yearAgo":"4266"},"ebidt":{"pct":"⇡ 14%","latest":"2748","yearAgo":"2408"},"np":{"pct":"⇡ 41%","latest":"751","yearAgo":"531"},"eps":{"pct":"⇡ 36%","latest":"₹ 9.04","yearAgo":"₹ 6.67"},"patPct":41},{"name":"Anand Rathi Wea.","link":"https://www.screener.in/company/ANANDRATHI/consolidated/#quarters","price":"3,566","mcap":"29,605","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 30%","latest":"277","yearAgo":"213"},"ebidt":{"pct":"⇣ 6%","latest":"83.1","yearAgo":"88.7"},"np":{"pct":"⇡ 41%","latest":"102","yearAgo":"72.4"},"eps":{"pct":"⇡ 41%","latest":"₹ 12.31","yearAgo":"₹ 8.72"},"patPct":41},{"name":"Havells India","link":"https://www.screener.in/company/HAVELLS/consolidated/#quarters","price":"1,242","mcap":"77,937","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 2%","latest":"6705","yearAgo":"6544"},"ebidt":{"pct":"⇣ 4%","latest":"729","yearAgo":"757"},"np":{"pct":"⇡ 40%","latest":"723","yearAgo":"517"},"eps":{"pct":"⇡ 40%","latest":"₹ 11.53","yearAgo":"₹ 8.26"},"patPct":40},{"name":"Bank of Maha","link":"https://www.screener.in/company/MAHABANK/consolidated/#quarters","price":"76.8","mcap":"59,087","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 15%","latest":"7755","yearAgo":"6731"},"ebidt":{"pct":"⇡ 31%","latest":"5444","yearAgo":"4170"},"np":{"pct":"⇡ 36%","latest":"2045","yearAgo":"1502"},"eps":{"pct":"⇡ 36%","latest":"₹ 2.66","yearAgo":"₹ 1.95"},"patPct":36},{"name":"Persistent Systems","link":"https://www.screener.in/company/PERSISTENT/consolidated/#quarters","price":"4,804","mcap":"75,781","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 25%","latest":"4056","yearAgo":"3242"},"ebidt":{"pct":"⇡ 31%","latest":"768","yearAgo":"584"},"np":{"pct":"⇡ 34%","latest":"529","yearAgo":"396"},"eps":{"pct":"⇡ 31%","latest":"₹ 33.55","yearAgo":"₹ 25.59"},"patPct":34},{"name":"Sumeru Industrie","link":"https://www.screener.in/company/530445/#quarters","price":"1.96","mcap":"14","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇡ 33%","latest":"-0.04","yearAgo":"-0.06"},"np":{"pct":"⇡ 33%","latest":"0.04","yearAgo":"0.03"},"eps":{"pct":"⇡ 0%","latest":"₹ 0.01","yearAgo":"₹ 0"},"patPct":33},{"name":"Virgo Global","link":"https://www.screener.in/company/532354/#quarters","price":"6.41","mcap":"7","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0.92","yearAgo":"0"},"ebidt":{"pct":"⇡ 19%","latest":"0.82","yearAgo":"0.69"},"np":{"pct":"⇡ 32%","latest":"0.82","yearAgo":"0.62"},"eps":{"pct":"⇡ 32%","latest":"₹ 0.78","yearAgo":"₹ 0.59"},"patPct":32},{"name":"Oracle Fin.Serv.","link":"https://www.screener.in/company/OFSS/consolidated/#quarters","price":"8,821","mcap":"76,776","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 20%","latest":"2065","yearAgo":"1716"},"ebidt":{"pct":"⇡ 38%","latest":"1056","yearAgo":"765"},"np":{"pct":"⇡ 31%","latest":"842","yearAgo":"644"},"eps":{"pct":"⇡ 30%","latest":"₹ 96.71","yearAgo":"₹ 74.13"},"patPct":31},{"name":"Himadri Special","link":"https://www.screener.in/company/HSCL/consolidated/#quarters","price":"575","mcap":"28,999","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 14%","latest":"1288","yearAgo":"1135"},"ebidt":{"pct":"⇡ 4%","latest":"242","yearAgo":"233"},"np":{"pct":"⇡ 29%","latest":"208","yearAgo":"155"},"eps":{"pct":"⇡ 26%","latest":"₹ 3.98","yearAgo":"₹ 3.15"},"patPct":29},{"name":"Tata Elxsi","link":"https://www.screener.in/company/TATAELXSI/consolidated/#quarters","price":"4,206","mcap":"26,202","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 9%","latest":"994","yearAgo":"908"},"ebidt":{"pct":"⇡ 18%","latest":"245","yearAgo":"208"},"np":{"pct":"⇡ 28%","latest":"220","yearAgo":"172"},"eps":{"pct":"⇡ 28%","latest":"₹ 35.37","yearAgo":"₹ 27.68"},"patPct":28},{"name":"Sunteck Realty","link":"https://www.screener.in/company/SUNTECK/consolidated/#quarters","price":"346","mcap":"5,080","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 65%","latest":"339","yearAgo":"206"},"ebidt":{"pct":"⇡ 41%","latest":"96.6","yearAgo":"68.7"},"np":{"pct":"⇡ 27%","latest":"62.8","yearAgo":"50.4"},"eps":{"pct":"⇡ 26%","latest":"₹ 4.34","yearAgo":"₹ 3.44"},"patPct":27},{"name":"Trent","link":"https://www.screener.in/company/TRENT/consolidated/#quarters","price":"4,245","mcap":"150,910","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 19%","latest":"5028","yearAgo":"4217"},"ebidt":{"pct":"⇡ 40%","latest":"911","yearAgo":"651"},"np":{"pct":"⇡ 26%","latest":"413","yearAgo":"312"},"eps":{"pct":"⇡ 26%","latest":"₹ 11.26","yearAgo":"₹ 8.95"},"patPct":26},{"name":"Infosys","link":"https://www.screener.in/company/INFY/consolidated/#quarters","price":"1,166","mcap":"472,683","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 13%","latest":"46402","yearAgo":"40925"},"ebidt":{"pct":"⇡ 13%","latest":"11167","yearAgo":"9874"},"np":{"pct":"⇡ 21%","latest":"8509","yearAgo":"7038"},"eps":{"pct":"⇡ 24%","latest":"₹ 20.96","yearAgo":"₹ 16.93"},"patPct":21},{"name":"Swaraj Engines","link":"https://www.screener.in/company/SWARAJENG/consolidated/#quarters","price":"3,879","mcap":"4,713","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 20%","latest":"546","yearAgo":"454"},"ebidt":{"pct":"⇡ 21%","latest":"75","yearAgo":"61.9"},"np":{"pct":"⇡ 20%","latest":"54.6","yearAgo":"45.4"},"eps":{"pct":"⇡ 20%","latest":"₹ 44.91","yearAgo":"₹ 37.39"},"patPct":20},{"name":"PNB Housing","link":"https://www.screener.in/company/PNBHOUSING/consolidated/#quarters","price":"1,026","mcap":"26,719","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 8%","latest":"2182","yearAgo":"2022"},"ebidt":{"pct":"⇡ 13%","latest":"2129","yearAgo":"1889"},"np":{"pct":"⇡ 19%","latest":"656","yearAgo":"550"},"eps":{"pct":"⇡ 19%","latest":"₹ 25.17","yearAgo":"₹ 21.17"},"patPct":19},{"name":"Choice Intl.","link":"https://www.screener.in/company/CHOICEIN/consolidated/#quarters","price":"703","mcap":"15,662","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 21%","latest":"307","yearAgo":"253"},"ebidt":{"pct":"⇡ 20%","latest":"116","yearAgo":"96.2"},"np":{"pct":"⇡ 17%","latest":"67.8","yearAgo":"53.5"},"eps":{"pct":"⇡ 5%","latest":"₹ 2.71","yearAgo":"₹ 2.59"},"patPct":17},{"name":"Tech Mahindra","link":"https://www.screener.in/company/TECHM/consolidated/#quarters","price":"1,353","mcap":"132,572","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 13%","latest":"15076","yearAgo":"13384"},"ebidt":{"pct":"⇡ 39%","latest":"2565","yearAgo":"1839"},"np":{"pct":"⇡ 16%","latest":"1356","yearAgo":"1142"},"eps":{"pct":"⇡ 16%","latest":"₹ 13.82","yearAgo":"₹ 11.92"},"patPct":16},{"name":"360 ONE","link":"https://www.screener.in/company/360ONE/consolidated/#quarters","price":"1,035","mcap":"42,029","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 36%","latest":"1115","yearAgo":"821"},"ebidt":{"pct":"⇡ 44%","latest":"663","yearAgo":"461"},"np":{"pct":"⇡ 16%","latest":"289","yearAgo":"250"},"eps":{"pct":"⇡ 12%","latest":"₹ 7.11","yearAgo":"₹ 6.35"},"patPct":16},{"name":"TCS","link":"https://www.screener.in/company/TCS/consolidated/#quarters","price":"2,403","mcap":"869,481","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 10%","latest":"70698","yearAgo":"64479"},"ebidt":{"pct":"⇡ 14%","latest":"19276","yearAgo":"16980"},"np":{"pct":"⇡ 12%","latest":"13784","yearAgo":"12293"},"eps":{"pct":"⇡ 12%","latest":"₹ 37.92","yearAgo":"₹ 33.79"},"patPct":12},{"name":"Indian Energy Ex","link":"https://www.screener.in/company/IEX/consolidated/#quarters","price":"125","mcap":"11,137","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 22%","latest":"172","yearAgo":"141"},"ebidt":{"pct":"⇡ 21%","latest":"148","yearAgo":"122"},"np":{"pct":"⇡ 11%","latest":"124","yearAgo":"112"},"eps":{"pct":"⇡ 10%","latest":"₹ 1.39","yearAgo":"₹ 1.26"},"patPct":11},{"name":"Union Bank (I)","link":"https://www.screener.in/company/UNIONBANK/consolidated/#quarters","price":"177","mcap":"134,886","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 4%","latest":"26676","yearAgo":"27869"},"ebidt":{"pct":"⇣ 1%","latest":"17932","yearAgo":"18196"},"np":{"pct":"⇡ 10%","latest":"5504","yearAgo":"5011"},"eps":{"pct":"⇡ 10%","latest":"₹ 7.21","yearAgo":"₹ 6.56"},"patPct":10},{"name":"ICICI AMC","link":"https://www.screener.in/company/ICICIAMC/consolidated/#quarters","price":"3,307","mcap":"163,449","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 20%","latest":"1517","yearAgo":"1269"},"ebidt":{"pct":"⇡ 30%","latest":"1160","yearAgo":"894"},"np":{"pct":"⇡ 10%","latest":"763","yearAgo":"692"},"eps":{"pct":"⇣ 96%","latest":"₹ 15.45","yearAgo":"₹ 391.86"},"patPct":10},{"name":"ICICI Bank","link":"https://www.screener.in/company/ICICIBANK/consolidated/#quarters","price":"1,333","mcap":"954,895","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 2%","latest":"49594","yearAgo":"48387"},"ebidt":{"pct":"⇣ 28%","latest":"7771","yearAgo":"10799"},"np":{"pct":"⇡ 9%","latest":"15681","yearAgo":"14354"},"eps":{"pct":"⇡ 9%","latest":"₹ 20.61","yearAgo":"₹ 18.96"},"patPct":9},{"name":"HDFC Bank","link":"https://www.screener.in/company/HDFCBANK/consolidated/#quarters","price":"786","mcap":"1,210,073","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 0%","latest":"87182","yearAgo":"86779"},"ebidt":{"pct":"⇡ 10%","latest":"43155","yearAgo":"39070"},"np":{"pct":"⇡ 8%","latest":"21074","yearAgo":"19285"},"eps":{"pct":"⇡ 7%","latest":"₹ 13.22","yearAgo":"₹ 12.31"},"patPct":8},{"name":"NDL Ventures","link":"https://www.screener.in/company/NDLVENTURE/consolidated/#quarters","price":"119","mcap":"401","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇣ 14%","latest":"-1.06","yearAgo":"-0.93"},"np":{"pct":"⇡ 7%","latest":"0.15","yearAgo":"0.14"},"eps":{"pct":"⇡ 0%","latest":"₹ 0.04","yearAgo":"₹ 0.04"},"patPct":7},{"name":"ICICI Lombard","link":"https://www.screener.in/company/ICICIGI/consolidated/#quarters","price":"1,777","mcap":"88,604","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 13%","latest":"6825","yearAgo":"6051"},"ebidt":{"pct":"⇡ 13%","latest":"686","yearAgo":"609"},"np":{"pct":"⇡ 7%","latest":"547","yearAgo":"510"},"eps":{"pct":"⇡ 7%","latest":"₹ 10.96","yearAgo":"₹ 10.28"},"patPct":7},{"name":"Adani Energy Sol","link":"https://www.screener.in/company/ADANIENSOL/consolidated/#quarters","price":"1,312","mcap":"157,638","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 17%","latest":"7443","yearAgo":"6375"},"ebidt":{"pct":"⇡ 5%","latest":"2145","yearAgo":"2040"},"np":{"pct":"⇡ 6%","latest":"723","yearAgo":"714"},"eps":{"pct":"⇡ 6%","latest":"₹ 5.69","yearAgo":"₹ 5.39"},"patPct":6},{"name":"Indosolar","link":"https://www.screener.in/company/WAAREEINDO/consolidated/#quarters","price":"460","mcap":"1,914","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 57%","latest":"83.1","yearAgo":"192"},"ebidt":{"pct":"⇡ 28%","latest":"64.3","yearAgo":"50.2"},"np":{"pct":"⇡ 5%","latest":"42","yearAgo":"40"},"eps":{"pct":"⇡ 5%","latest":"₹ 10.1","yearAgo":"₹ 9.62"},"patPct":5},{"name":"HDFC Life Insur.","link":"https://www.screener.in/company/HDFCLIFE/consolidated/#quarters","price":"593","mcap":"127,991","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 18%","latest":"19890","yearAgo":"24191"},"ebidt":{"pct":"⇣ 71%","latest":"108","yearAgo":"377"},"np":{"pct":"⇡ 5%","latest":"497","yearAgo":"475"},"eps":{"pct":"⇡ 5%","latest":"₹ 2.31","yearAgo":"₹ 2.21"},"patPct":5},{"name":"HCL Technologies","link":"https://www.screener.in/company/HCLTECH/consolidated/#quarters","price":"1,206","mcap":"327,160","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 12%","latest":"33981","yearAgo":"30246"},"ebidt":{"pct":"⇡ 4%","latest":"6712","yearAgo":"6482"},"np":{"pct":"⇡ 4%","latest":"4490","yearAgo":"4309"},"eps":{"pct":"⇡ 4%","latest":"₹ 16.54","yearAgo":"₹ 15.87"},"patPct":4},{"name":"Rajratan Global","link":"https://www.screener.in/company/RAJRATAN/consolidated/#quarters","price":"426","mcap":"2,162","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 25%","latest":"314","yearAgo":"251"},"ebidt":{"pct":"⇣ 14%","latest":"28.6","yearAgo":"33.3"},"np":{"pct":"⇡ 2%","latest":"15.4","yearAgo":"15.2"},"eps":{"pct":"⇡ 2%","latest":"₹ 3.04","yearAgo":"₹ 2.99"},"patPct":2},{"name":"SML Mahindra","link":"https://www.screener.in/company/SMLMAH/consolidated/#quarters","price":"3,904","mcap":"5,649","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 16%","latest":"898","yearAgo":"771"},"ebidt":{"pct":"⇡ 1%","latest":"90.4","yearAgo":"89.9"},"np":{"pct":"⇡ 2%","latest":"54.2","yearAgo":"53"},"eps":{"pct":"⇡ 2%","latest":"₹ 37.45","yearAgo":"₹ 36.59"},"patPct":2},{"name":"Rel. Indl. Infra","link":"https://www.screener.in/company/RIIL/consolidated/#quarters","price":"773","mcap":"1,167","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 33%","latest":"8.43","yearAgo":"12.5"},"ebidt":{"pct":"⇡ 65%","latest":"-1.25","yearAgo":"-3.54"},"np":{"pct":"⇡ 1%","latest":"3.22","yearAgo":"3.2"},"eps":{"pct":"⇡ 0%","latest":"₹ 2.13","yearAgo":"₹ 2.12"},"patPct":1},{"name":"CIE Automotive","link":"https://www.screener.in/company/CIEINDIA/consolidated/#quarters","price":"461","mcap":"17,492","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 15%","latest":"2612","yearAgo":"2273"},"ebidt":{"pct":"⇡ 20%","latest":"402","yearAgo":"335"},"np":{"pct":"","latest":"0.00","yearAgo":"1.31"},"eps":{"pct":"⇡ 21%","latest":"₹ 6.57","yearAgo":"₹ 5.44"},"patPct":0},{"name":"Jonjua Overseas","link":"https://www.screener.in/company/542446/#quarters","price":"3.67","mcap":"10","quarter":"Mar 2026","yearAgoQ":"Sales","sales":{"pct":"","latest":"0.00","yearAgo":"0.00"},"ebidt":{"pct":"","latest":"8.15","yearAgo":"0.00"},"np":{"pct":"","latest":"0.00","yearAgo":"0.00"},"eps":{"pct":"","latest":"₹ 2.1","yearAgo":"₹ None"},"patPct":0},{"name":"LTM","link":"https://www.screener.in/company/LTM/consolidated/#quarters","price":"4,273","mcap":"126,683","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 16%","latest":"11292","yearAgo":"9772"},"ebidt":{"pct":"⇡ 24%","latest":"1973","yearAgo":"1596"},"np":{"pct":"","latest":"0.00","yearAgo":"62.2"},"eps":{"pct":"⇡ 23%","latest":"₹ 46.96","yearAgo":"₹ 38.09"},"patPct":0},{"name":"Hind.Composites","link":"https://www.screener.in/company/HINDCOMPOS/consolidated/#quarters","price":"483","mcap":"713","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 18%","latest":"105","yearAgo":"89.2"},"ebidt":{"pct":"⇡ 1%","latest":"16.3","yearAgo":"16.2"},"np":{"pct":"","latest":"0.00","yearAgo":"-12.8"},"eps":{"pct":"⇡ 93%","latest":"₹ 7.92","yearAgo":"₹ 4.11"},"patPct":0},{"name":"UTI AMC","link":"https://www.screener.in/company/UTIAMC/consolidated/#quarters","price":"930","mcap":"11,952","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 4%","latest":"390","yearAgo":"376"},"ebidt":{"pct":"⇣ 107%","latest":"-12.1","yearAgo":"169"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.05"},"eps":{"pct":"⇣ 176%","latest":"₹ -5.19","yearAgo":"₹ 6.83"},"patPct":0},{"name":"Cyient","link":"https://www.screener.in/company/CYIENT/consolidated/#quarters","price":"889","mcap":"9,876","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 1%","latest":"1927","yearAgo":"1909"},"ebidt":{"pct":"⇣ 26%","latest":"222","yearAgo":"298"},"np":{"pct":"","latest":"0.00","yearAgo":"-71.2"},"eps":{"pct":"⇣ 68%","latest":"₹ 4.93","yearAgo":"₹ 15.35"},"patPct":0},{"name":"Khaitan Chemical","link":"https://www.screener.in/company/KHAICHEM/consolidated/#quarters","price":"56.4","mcap":"547","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 20%","latest":"193","yearAgo":"161"},"ebidt":{"pct":"⇡ 67%","latest":"17.6","yearAgo":"10.6"},"np":{"pct":"","latest":"0.00","yearAgo":"-4.16"},"eps":{"pct":"⇣ 85%","latest":"₹ 0.13","yearAgo":"₹ 0.89"},"patPct":0},{"name":"Tata Tele. Mah.","link":"https://www.screener.in/company/TTML/consolidated/#quarters","price":"44.0","mcap":"8,592","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 4%","latest":"296","yearAgo":"308"},"ebidt":{"pct":"⇡ 7%","latest":"163","yearAgo":"153"},"np":{"pct":"","latest":"0.00","yearAgo":"663"},"eps":{"pct":"⇡ 289%","latest":"₹ 2.97","yearAgo":"₹ -1.57"},"patPct":0},{"name":"Aurum Proptech","link":"https://www.screener.in/company/AURUM/consolidated/#quarters","price":"185","mcap":"1,332","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 83%","latest":"124","yearAgo":"67.8"},"ebidt":{"pct":"⇡ 103%","latest":"28.4","yearAgo":"14"},"np":{"pct":"","latest":"0.00","yearAgo":"13"},"eps":{"pct":"⇡ 194%","latest":"₹ 2.31","yearAgo":"₹ -2.46"},"patPct":0},{"name":"Rajesh Power","link":"https://www.screener.in/company/544291/#quarters","price":"1,034","mcap":"1,862","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 30%","latest":"990","yearAgo":"759"},"ebidt":{"pct":"⇡ 31%","latest":"113","yearAgo":"86.7"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.64"},"eps":{"pct":"⇡ 31%","latest":"₹ 44.14","yearAgo":"₹ 33.58"},"patPct":0},{"name":"Sarla Performanc","link":"https://www.screener.in/company/SARLAPOLY/consolidated/#quarters","price":"91.1","mcap":"761","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 2%","latest":"103","yearAgo":"100"},"ebidt":{"pct":"⇣ 90%","latest":"2.13","yearAgo":"21.7"},"np":{"pct":"","latest":"0.00","yearAgo":"-77.1"},"eps":{"pct":"⇣ 570%","latest":"₹ -7.14","yearAgo":"₹ 1.52"},"patPct":0},{"name":"Delta Corp","link":"https://www.screener.in/company/DELTACORP/consolidated/#quarters","price":"82.8","mcap":"2,217","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 12%","latest":"161","yearAgo":"183"},"ebidt":{"pct":"⇣ 32%","latest":"27.7","yearAgo":"40.6"},"np":{"pct":"","latest":"0.00","yearAgo":"-5.51"},"eps":{"pct":"⇣ 90%","latest":"₹ 0.61","yearAgo":"₹ 6.15"},"patPct":0},{"name":"Tata Comm","link":"https://www.screener.in/company/TATACOMM/consolidated/#quarters","price":"1,517","mcap":"43,223","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 9%","latest":"6554","yearAgo":"5990"},"ebidt":{"pct":"⇡ 14%","latest":"1284","yearAgo":"1122"},"np":{"pct":"","latest":"0.00","yearAgo":"20.3"},"eps":{"pct":"⇣ 75%","latest":"₹ 9.24","yearAgo":"₹ 36.5"},"patPct":0},{"name":"L&T Technology","link":"https://www.screener.in/company/LTTS/consolidated/#quarters","price":"3,386","mcap":"35,889","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 8%","latest":"2858","yearAgo":"2638"},"ebidt":{"pct":"⇡ 20%","latest":"521","yearAgo":"433"},"np":{"pct":"","latest":"0.00","yearAgo":"-24.3"},"eps":{"pct":"⇡ 7%","latest":"₹ 31.33","yearAgo":"₹ 29.38"},"patPct":0},{"name":"Sangam India","link":"https://www.screener.in/company/SANGAMIND/consolidated/#quarters","price":"512","mcap":"2,574","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 19%","latest":"866","yearAgo":"725"},"ebidt":{"pct":"⇡ 86%","latest":"99.3","yearAgo":"53.4"},"np":{"pct":"","latest":"0.00","yearAgo":"-1.66"},"eps":{"pct":"⇡ 258%","latest":"₹ 7.45","yearAgo":"₹ 2.08"},"patPct":0},{"name":"Skyline Millars","link":"https://www.screener.in/company/505650/#quarters","price":"19.6","mcap":"79","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 100%","latest":"0","yearAgo":"2.13"},"ebidt":{"pct":"⇣ 5400%","latest":"-0.53","yearAgo":"0.01"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.06"},"eps":{"pct":"⇣ 320%","latest":"₹ -0.11","yearAgo":"₹ 0.05"},"patPct":0},{"name":"Mah. Scooters","link":"https://www.screener.in/company/MAHSCOOTER/consolidated/#quarters","price":"12,402","mcap":"14,174","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 9%","latest":"6.03","yearAgo":"6.65"},"ebidt":{"pct":"⇡ 5%","latest":"4.98","yearAgo":"4.75"},"np":{"pct":"","latest":"0.00","yearAgo":"57.7"},"eps":{"pct":"⇣ 92%","latest":"₹ 3.51","yearAgo":"₹ 45.18"},"patPct":0},{"name":"T R I L","link":"https://www.screener.in/company/TARIL/consolidated/#quarters","price":"320","mcap":"9,620","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 16%","latest":"783","yearAgo":"676"},"ebidt":{"pct":"⇣ 10%","latest":"118","yearAgo":"131"},"np":{"pct":"","latest":"0.00","yearAgo":"3.24"},"eps":{"pct":"⇣ 5%","latest":"₹ 2.97","yearAgo":"₹ 3.14"},"patPct":0},{"name":"Nestle India","link":"https://www.screener.in/company/NESTLEIND/consolidated/#quarters","price":"1,418","mcap":"273,474","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 23%","latest":"6748","yearAgo":"5504"},"ebidt":{"pct":"⇡ 28%","latest":"1772","yearAgo":"1388"},"np":{"pct":"","latest":"0.00","yearAgo":"-36.2"},"eps":{"pct":"⇡ 26%","latest":"₹ 5.78","yearAgo":"₹ 4.59"},"patPct":0},{"name":"Indbank Merchant","link":"https://www.screener.in/company/INDBANK/consolidated/#quarters","price":"33.2","mcap":"147","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 11%","latest":"5.89","yearAgo":"5.31"},"ebidt":{"pct":"⇡ 10%","latest":"1.83","yearAgo":"1.66"},"np":{"pct":"","latest":"0.00","yearAgo":"0.11"},"eps":{"pct":"⇡ 4%","latest":"₹ 0.27","yearAgo":"₹ 0.26"},"patPct":0},{"name":"Ugro Capital","link":"https://www.screener.in/company/UGROCAP/consolidated/#quarters","price":"106","mcap":"1,642","quarter":"Mar 2026","yearAgoQ":"Sales","sales":{"pct":"","latest":"0.00","yearAgo":"0.00"},"ebidt":{"pct":"","latest":"359","yearAgo":"0.00"},"np":{"pct":"","latest":"0.00","yearAgo":"0.00"},"eps":{"pct":"","latest":"₹ 3.29","yearAgo":"₹ None"},"patPct":0},{"name":"PNB Gilts","link":"https://www.screener.in/company/PNBGILTS/consolidated/#quarters","price":"71.3","mcap":"1,284","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 1%","latest":"424","yearAgo":"419"},"ebidt":{"pct":"⇣ 19%","latest":"331","yearAgo":"407"},"np":{"pct":"","latest":"0.00","yearAgo":"0.24"},"eps":{"pct":"⇣ 83%","latest":"₹ 0.72","yearAgo":"₹ 4.17"},"patPct":0},{"name":"Mangalam Global","link":"https://www.screener.in/company/MGEL/consolidated/#quarters","price":"13.6","mcap":"450","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 98%","latest":"1064","yearAgo":"537"},"ebidt":{"pct":"⇡ 211%","latest":"24.2","yearAgo":"7.79"},"np":{"pct":"","latest":"0.00","yearAgo":"0.59"},"eps":{"pct":"⇡ 138%","latest":"₹ 0.38","yearAgo":"₹ 0.16"},"patPct":0},{"name":"Netwrk.18 Media","link":"https://www.screener.in/company/NETWORK18/consolidated/#quarters","price":"34.4","mcap":"5,311","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 10%","latest":"616","yearAgo":"561"},"ebidt":{"pct":"⇡ 60%","latest":"30.4","yearAgo":"19"},"np":{"pct":"","latest":"0.00","yearAgo":"-12.1"},"eps":{"pct":"⇡ 0%","latest":"₹ -0.2","yearAgo":"₹ -0.2"},"patPct":0},{"name":"Infomedia Press","link":"https://www.screener.in/company/INFOMEDIA/consolidated/#quarters","price":"5.92","mcap":"30","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇡ 100%","latest":"0","yearAgo":"-0.01"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.18"},"eps":{"pct":"⇡ 11%","latest":"₹ -0.16","yearAgo":"₹ -0.18"},"patPct":0},{"name":"Hathway Cable","link":"https://www.screener.in/company/HATHWAY/consolidated/#quarters","price":"11.1","mcap":"1,965","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 6%","latest":"546","yearAgo":"513"},"ebidt":{"pct":"⇣ 22%","latest":"70.7","yearAgo":"90.8"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.45"},"eps":{"pct":"⇣ 70%","latest":"₹ 0.06","yearAgo":"₹ 0.2"},"patPct":0},{"name":"Mastek","link":"https://www.screener.in/company/MASTEK/consolidated/#quarters","price":"1,702","mcap":"5,277","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 4%","latest":"938","yearAgo":"905"},"ebidt":{"pct":"⇡ 9%","latest":"151","yearAgo":"139"},"np":{"pct":"","latest":"0.00","yearAgo":"-23.7"},"eps":{"pct":"⇡ 31%","latest":"₹ 34.24","yearAgo":"₹ 26.2"},"patPct":0},{"name":"Waaree Renewab.","link":"https://www.screener.in/company/WAAREERTL/consolidated/#quarters","price":"1,032","mcap":"10,767","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 131%","latest":"1102","yearAgo":"477"},"ebidt":{"pct":"⇡ 64%","latest":"207","yearAgo":"126"},"np":{"pct":"","latest":"0.00","yearAgo":"-4.02"},"eps":{"pct":"⇡ 66%","latest":"₹ 14.93","yearAgo":"₹ 9"},"patPct":0},{"name":"Alok Industries","link":"https://www.screener.in/company/ALOKINDS/consolidated/#quarters","price":"13.5","mcap":"6,708","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 3%","latest":"983","yearAgo":"953"},"ebidt":{"pct":"⇡ 115%","latest":"3.51","yearAgo":"-23.2"},"np":{"pct":"","latest":"0.00","yearAgo":"0.04"},"eps":{"pct":"⇣ 160%","latest":"₹ -0.39","yearAgo":"₹ -0.15"},"patPct":0},{"name":"GTPL Hathway","link":"https://www.screener.in/company/GTPL/consolidated/#quarters","price":"67.4","mcap":"759","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 4%","latest":"924","yearAgo":"891"},"ebidt":{"pct":"⇣ 24%","latest":"80.4","yearAgo":"105"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.47"},"eps":{"pct":"⇣ 241%","latest":"₹ -1.34","yearAgo":"₹ 0.95"},"patPct":0},{"name":"Elecon Engg.Co","link":"https://www.screener.in/company/ELECON/consolidated/#quarters","price":"508","mcap":"11,403","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 7%","latest":"746","yearAgo":"798"},"ebidt":{"pct":"⇣ 19%","latest":"158","yearAgo":"195"},"np":{"pct":"","latest":"0.00","yearAgo":"-102"},"eps":{"pct":"⇣ 96%","latest":"₹ 0.27","yearAgo":"₹ 6.53"},"patPct":0},{"name":"Nuvoco Vistas","link":"https://www.screener.in/company/NUVOCO/consolidated/#quarters","price":"293","mcap":"10,479","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 9%","latest":"3307","yearAgo":"3042"},"ebidt":{"pct":"⇡ 7%","latest":"588","yearAgo":"552"},"np":{"pct":"","latest":"0.00","yearAgo":"-48.1"},"eps":{"pct":"⇣ 15%","latest":"₹ 3.94","yearAgo":"₹ 4.63"},"patPct":0},{"name":"Kapil Raj Financ","link":"https://www.screener.in/company/539679/#quarters","price":"2.85","mcap":"31","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇡ 12%","latest":"-0.07","yearAgo":"-0.08"},"np":{"pct":"⇡ 0%","latest":"-0.07","yearAgo":"-0.07"},"eps":{"pct":"⇡ 0%","latest":"₹ -0.01","yearAgo":"₹ -0.01"},"patPct":0},{"name":"Parin Enterpris.","link":"https://www.screener.in/company/PARIN/consolidated/#quarters","price":"640","mcap":"711","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 6%","latest":"139","yearAgo":"131"},"ebidt":{"pct":"⇣ 19%","latest":"12.3","yearAgo":"15.2"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.18"},"eps":{"pct":"⇣ 27%","latest":"₹ 3.42","yearAgo":"₹ 4.67"},"patPct":0},{"name":"Aqylon Nexus","link":"https://www.screener.in/company/AQYLON/consolidated/#quarters","price":"50.1","mcap":"1,272","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 179%","latest":"3.88","yearAgo":"1.39"},"ebidt":{"pct":"⇣ 9%","latest":"0.1","yearAgo":"0.11"},"np":{"pct":"","latest":"0.00","yearAgo":"-5.82"},"eps":{"pct":"⇡ 0%","latest":"₹ -0.31","yearAgo":"₹ 0"},"patPct":0},{"name":"Agri-Tech India","link":"https://www.screener.in/company/AGRITECH/consolidated/#quarters","price":"112","mcap":"66","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 33%","latest":"0.08","yearAgo":"0.06"},"ebidt":{"pct":"⇣ 15%","latest":"-0.23","yearAgo":"-0.2"},"np":{"pct":"","latest":"0.00","yearAgo":"-0.02"},"eps":{"pct":"⇣ 2%","latest":"₹ -0.45","yearAgo":"₹ -0.44"},"patPct":0},{"name":"SBI Life Insuran","link":"https://www.screener.in/company/SBILIFE/consolidated/#quarters","price":"1,784","mcap":"178,903","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 82%","latest":"4071","yearAgo":"23071"},"ebidt":{"pct":"⇣ 133%","latest":"-1046","yearAgo":"-449"},"np":{"pct":"⇣ 1%","latest":"805","yearAgo":"814"},"eps":{"pct":"⇣ 1%","latest":"₹ 8.02","yearAgo":"₹ 8.12"},"patPct":-1},{"name":"Wipro","link":"https://www.screener.in/company/WIPRO/consolidated/#quarters","price":"199","mcap":"208,407","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 8%","latest":"24236","yearAgo":"22504"},"ebidt":{"pct":"⇡ 6%","latest":"4909","yearAgo":"4624"},"np":{"pct":"⇣ 2%","latest":"3522","yearAgo":"3588"},"eps":{"pct":"⇣ 2%","latest":"₹ 3.34","yearAgo":"₹ 3.41"},"patPct":-2},{"name":"HDFC AMC","link":"https://www.screener.in/company/HDFCAMC/consolidated/#quarters","price":"2,711","mcap":"116,159","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 17%","latest":"1050","yearAgo":"901"},"ebidt":{"pct":"⇡ 16%","latest":"846","yearAgo":"731"},"np":{"pct":"⇣ 2%","latest":"623","yearAgo":"639"},"eps":{"pct":"⇣ 3%","latest":"₹ 14.55","yearAgo":"₹ 14.94"},"patPct":-2},{"name":"Gujarat Hotels","link":"https://www.screener.in/company/507960/#quarters","price":"194","mcap":"74","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 24%","latest":"1.62","yearAgo":"1.31"},"ebidt":{"pct":"⇡ 24%","latest":"1.48","yearAgo":"1.19"},"np":{"pct":"⇣ 7%","latest":"1.57","yearAgo":"1.68"},"eps":{"pct":"⇣ 7%","latest":"₹ 4.15","yearAgo":"₹ 4.44"},"patPct":-7},{"name":"EMA Partners","link":"https://www.screener.in/company/EMAPARTNER/consolidated/#quarters","price":"84.9","mcap":"197","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 35%","latest":"46.8","yearAgo":"34.8"},"ebidt":{"pct":"⇡ 69%","latest":"6.67","yearAgo":"3.94"},"np":{"pct":"⇣ 10%","latest":"5.2","yearAgo":"5.8"},"eps":{"pct":"⇣ 10%","latest":"₹ 2.24","yearAgo":"₹ 2.5"},"patPct":-10},{"name":"G M Breweries","link":"https://www.screener.in/company/GMBREW/consolidated/#quarters","price":"960","mcap":"2,194","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 19%","latest":"202","yearAgo":"169"},"ebidt":{"pct":"⇡ 83%","latest":"52.4","yearAgo":"28.7"},"np":{"pct":"⇣ 11%","latest":"54.1","yearAgo":"60.5"},"eps":{"pct":"⇣ 11%","latest":"₹ 23.67","yearAgo":"₹ 26.46"},"patPct":-11},{"name":"Jio Financial","link":"https://www.screener.in/company/JIOFIN/consolidated/#quarters","price":"249","mcap":"164,418","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 106%","latest":"1019","yearAgo":"493"},"ebidt":{"pct":"⇡ 79%","latest":"605","yearAgo":"338"},"np":{"pct":"⇣ 14%","latest":"272","yearAgo":"316"},"eps":{"pct":"⇣ 14%","latest":"₹ 0.43","yearAgo":"₹ 0.5"},"patPct":-14},{"name":"Infollion Resea.","link":"https://www.screener.in/company/INFOLLION/consolidated/#quarters","price":"230","mcap":"224","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 17%","latest":"49.2","yearAgo":"42.1"},"ebidt":{"pct":"⇣ 21%","latest":"5.85","yearAgo":"7.42"},"np":{"pct":"⇣ 17%","latest":"5.34","yearAgo":"6.45"},"eps":{"pct":"⇣ 17%","latest":"₹ 5.5","yearAgo":"₹ 6.65"},"patPct":-17},{"name":"Aditya AMC","link":"https://www.screener.in/company/ABSLAMC/consolidated/#quarters","price":"1,060","mcap":"30,633","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 7%","latest":"458","yearAgo":"429"},"ebidt":{"pct":"⇡ 9%","latest":"266","yearAgo":"244"},"np":{"pct":"⇣ 18%","latest":"187","yearAgo":"228"},"eps":{"pct":"⇣ 18%","latest":"₹ 6.48","yearAgo":"₹ 7.91"},"patPct":-18},{"name":"PropsharePlatina","link":"https://www.screener.in/company/544295/#quarters","price":"1,035,000","mcap":"348","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 1%","latest":"7.71","yearAgo":"7.64"},"ebidt":{"pct":"⇡ 11%","latest":"7.4","yearAgo":"6.67"},"np":{"pct":"⇣ 20%","latest":"1.01","yearAgo":"1.26"},"eps":{"pct":"⇣ 20%","latest":"₹ 2970.59","yearAgo":"₹ 3705.88"},"patPct":-20},{"name":"Swadha Nature","link":"https://www.screener.in/company/531039/#quarters","price":"10.9","mcap":"4","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇣ 75%","latest":"-0.07","yearAgo":"-0.04"},"np":{"pct":"⇣ 20%","latest":"-0.06","yearAgo":"-0.05"},"eps":{"pct":"","latest":"₹ None","yearAgo":"₹ None"},"patPct":-20},{"name":"Mahindra EPC","link":"https://www.screener.in/company/MAHEPC/consolidated/#quarters","price":"116","mcap":"323","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 12%","latest":"107","yearAgo":"95.9"},"ebidt":{"pct":"⇣ 27%","latest":"7.04","yearAgo":"9.59"},"np":{"pct":"⇣ 23%","latest":"4.79","yearAgo":"6.25"},"eps":{"pct":"⇣ 24%","latest":"₹ 1.71","yearAgo":"₹ 2.24"},"patPct":-23},{"name":"Axita Cotton","link":"https://www.screener.in/company/AXITA/consolidated/#quarters","price":"8.24","mcap":"315","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 56%","latest":"61","yearAgo":"140"},"ebidt":{"pct":"⇣ 60%","latest":"-4.16","yearAgo":"-2.6"},"np":{"pct":"⇣ 26%","latest":"-2.34","yearAgo":"-1.86"},"eps":{"pct":"⇣ 20%","latest":"₹ -0.06","yearAgo":"₹ -0.05"},"patPct":-26},{"name":"Cyient DLM","link":"https://www.screener.in/company/CYIENTDLM/consolidated/#quarters","price":"370","mcap":"2,938","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 14%","latest":"369","yearAgo":"428"},"ebidt":{"pct":"⇣ 25%","latest":"43.1","yearAgo":"57.4"},"np":{"pct":"⇣ 28%","latest":"22.4","yearAgo":"31"},"eps":{"pct":"⇣ 28%","latest":"₹ 2.83","yearAgo":"₹ 3.91"},"patPct":-28},{"name":"Central Mine Pla","link":"https://www.screener.in/company/CMPDI/consolidated/#quarters","price":"183","mcap":"13,088","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 12%","latest":"827","yearAgo":"740"},"ebidt":{"pct":"⇣ 29%","latest":"238","yearAgo":"333"},"np":{"pct":"⇣ 32%","latest":"188","yearAgo":"277"},"eps":{"pct":"⇣ 100%","latest":"₹ 2.63","yearAgo":"₹ 1939.5"},"patPct":-32},{"name":"Just Dial","link":"https://www.screener.in/company/JUSTDIAL/consolidated/#quarters","price":"530","mcap":"4,506","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 6%","latest":"307","yearAgo":"289"},"ebidt":{"pct":"⇡ 3%","latest":"88.8","yearAgo":"86.1"},"np":{"pct":"⇣ 37%","latest":"100","yearAgo":"158"},"eps":{"pct":"⇣ 37%","latest":"₹ 11.76","yearAgo":"₹ 18.53"},"patPct":-37},{"name":"Den Networks","link":"https://www.screener.in/company/DEN/consolidated/#quarters","price":"27.3","mcap":"1,304","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 3%","latest":"241","yearAgo":"248"},"ebidt":{"pct":"⇣ 46%","latest":"15.3","yearAgo":"28.4"},"np":{"pct":"⇣ 38%","latest":"36.4","yearAgo":"59.9"},"eps":{"pct":"⇣ 38%","latest":"₹ 0.8","yearAgo":"₹ 1.3"},"patPct":-38},{"name":"B2B Soft.Tech.","link":"https://www.screener.in/company/531268/#quarters","price":"28.4","mcap":"49","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 7%","latest":"8.04","yearAgo":"7.48"},"ebidt":{"pct":"⇣ 30%","latest":"0.28","yearAgo":"0.4"},"np":{"pct":"⇣ 43%","latest":"0.32","yearAgo":"0.56"},"eps":{"pct":"⇣ 44%","latest":"₹ 0.18","yearAgo":"₹ 0.32"},"patPct":-43},{"name":"Sanathnagar Ent.","link":"https://www.screener.in/company/509423/#quarters","price":"40.1","mcap":"13","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇡ 43%","latest":"-0.08","yearAgo":"-0.14"},"np":{"pct":"⇣ 48%","latest":"0.21","yearAgo":"0.4"},"eps":{"pct":"⇣ 47%","latest":"₹ 0.67","yearAgo":"₹ 1.27"},"patPct":-48},{"name":"E2E Networks","link":"https://www.screener.in/company/E2E/consolidated/#quarters","price":"2,830","mcap":"5,818","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 186%","latest":"95.6","yearAgo":"33.5"},"ebidt":{"pct":"⇡ 336%","latest":"58.1","yearAgo":"13.3"},"np":{"pct":"⇣ 53%","latest":"6.44","yearAgo":"13.6"},"eps":{"pct":"⇣ 54%","latest":"₹ 3.13","yearAgo":"₹ 6.82"},"patPct":-53},{"name":"Eimco Elecon(I)","link":"https://www.screener.in/company/EIMCOELECO/consolidated/#quarters","price":"1,656","mcap":"955","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 4%","latest":"66.9","yearAgo":"64.3"},"ebidt":{"pct":"⇣ 29%","latest":"12.9","yearAgo":"18.2"},"np":{"pct":"⇣ 57%","latest":"6.36","yearAgo":"14.9"},"eps":{"pct":"⇣ 57%","latest":"₹ 11.03","yearAgo":"₹ 25.78"},"patPct":-57},{"name":"Bharat Coking","link":"https://www.screener.in/company/BHARATCOAL/consolidated/#quarters","price":"33.7","mcap":"15,699","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 15%","latest":"3283","yearAgo":"3866"},"ebidt":{"pct":"⇣ 641%","latest":"-335","yearAgo":"61.9"},"np":{"pct":"⇣ 59%","latest":"27.3","yearAgo":"66.5"},"eps":{"pct":"⇣ 100%","latest":"₹ 0.06","yearAgo":"₹ 14.28"},"patPct":-59},{"name":"Techindia Nirman","link":"https://www.screener.in/company/TECHIN/consolidated/#quarters","price":"14.0","mcap":"20","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇣ 317%","latest":"-0.25","yearAgo":"-0.06"},"np":{"pct":"⇣ 63%","latest":"-0.49","yearAgo":"-0.3"},"eps":{"pct":"⇣ 62%","latest":"₹ -0.34","yearAgo":"₹ -0.21"},"patPct":-63},{"name":"National Standar","link":"https://www.screener.in/company/NATIONSTD/consolidated/#quarters","price":"1,360","mcap":"2,720","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 100%","latest":"0","yearAgo":"2.81"},"ebidt":{"pct":"⇣ 2618%","latest":"-2.99","yearAgo":"-0.11"},"np":{"pct":"⇣ 68%","latest":"1.16","yearAgo":"3.6"},"eps":{"pct":"⇣ 68%","latest":"₹ 0.58","yearAgo":"₹ 1.8"},"patPct":-68},{"name":"Amal","link":"https://www.screener.in/company/506597/#quarters","price":"582","mcap":"720","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 94%","latest":"75.7","yearAgo":"39"},"ebidt":{"pct":"⇣ 30%","latest":"7.35","yearAgo":"10.5"},"np":{"pct":"⇣ 72%","latest":"1.9","yearAgo":"6.78"},"eps":{"pct":"⇣ 72%","latest":"₹ 1.54","yearAgo":"₹ 5.48"},"patPct":-72},{"name":"Morarka Finance","link":"https://www.screener.in/company/511549/#quarters","price":"56.0","mcap":"25","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 82%","latest":"0.06","yearAgo":"0.34"},"ebidt":{"pct":"⇣ 139%","latest":"-0.07","yearAgo":"0.18"},"np":{"pct":"⇣ 81%","latest":"0.1","yearAgo":"0.52"},"eps":{"pct":"⇣ 81%","latest":"₹ 0.22","yearAgo":"₹ 1.16"},"patPct":-81},{"name":"DB Intl.Stock","link":"https://www.screener.in/company/DBSTOCKBRO/consolidated/#quarters","price":"27.2","mcap":"95","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 22%","latest":"6.08","yearAgo":"7.78"},"ebidt":{"pct":"⇣ 51%","latest":"1.18","yearAgo":"2.4"},"np":{"pct":"⇣ 83%","latest":"0.23","yearAgo":"1.34"},"eps":{"pct":"⇣ 82%","latest":"₹ 0.07","yearAgo":"₹ 0.38"},"patPct":-83},{"name":"PAE","link":"https://www.screener.in/company/517230/#quarters","price":"22.0","mcap":"2","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"2.53","yearAgo":"0"},"ebidt":{"pct":"⇡ 100%","latest":"0.78","yearAgo":"-600"},"np":{"pct":"⇣ 94%","latest":"0.79","yearAgo":"13.8"},"eps":{"pct":"⇣ 94%","latest":"₹ 7.9","yearAgo":"₹ 137.6"},"patPct":-94},{"name":"Hathway Bhawani","link":"https://www.screener.in/company/509073/#quarters","price":"12.0","mcap":"10","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 22%","latest":"0.6","yearAgo":"0.77"},"ebidt":{"pct":"⇣ 188%","latest":"-0.14","yearAgo":"0.16"},"np":{"pct":"⇣ 178%","latest":"-0.18","yearAgo":"0.23"},"eps":{"pct":"⇣ 179%","latest":"₹ -0.22","yearAgo":"₹ 0.28"},"patPct":-178},{"name":"Tejas Networks","link":"https://www.screener.in/company/TEJASNET/consolidated/#quarters","price":"414","mcap":"7,359","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 83%","latest":"333","yearAgo":"1907"},"ebidt":{"pct":"⇣ 197%","latest":"-118","yearAgo":"122"},"np":{"pct":"⇣ 194%","latest":"-211","yearAgo":"-71.8"},"eps":{"pct":"⇣ 192%","latest":"₹ -11.89","yearAgo":"₹ -4.07"},"patPct":-194},{"name":"Roselabs Finance","link":"https://www.screener.in/company/531324/#quarters","price":"21.6","mcap":"22","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 100%","latest":"0","yearAgo":"0.71"},"ebidt":{"pct":"⇡ 0%","latest":"-0.05","yearAgo":"-0.05"},"np":{"pct":"⇣ 220%","latest":"-0.16","yearAgo":"-0.05"},"eps":{"pct":"⇣ 220%","latest":"₹ -0.16","yearAgo":"₹ -0.05"},"patPct":-220},{"name":"Cont. Controls","link":"https://www.screener.in/company/531460/#quarters","price":"8.82","mcap":"5","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇣ 900%","latest":"-0.1","yearAgo":"-0.01"},"np":{"pct":"⇣ 300%","latest":"-0.04","yearAgo":"-0.01"},"eps":{"pct":"⇣ 250%","latest":"₹ -0.07","yearAgo":"₹ -0.02"},"patPct":-300},{"name":"Vashu Bhagnani","link":"https://www.screener.in/company/532011/#quarters","price":"94.1","mcap":"602","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 48%","latest":"2.31","yearAgo":"4.48"},"ebidt":{"pct":"⇣ 315%","latest":"-5.06","yearAgo":"-1.22"},"np":{"pct":"⇣ 394%","latest":"-2.32","yearAgo":"0.88"},"eps":{"pct":"⇣ 357%","latest":"₹ -0.36","yearAgo":"₹ 0.14"},"patPct":-394},{"name":"Lotus Chocolate","link":"https://www.screener.in/company/523475/#quarters","price":"719","mcap":"923","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇣ 19%","latest":"127","yearAgo":"157"},"ebidt":{"pct":"⇣ 316%","latest":"-12.2","yearAgo":"5.66"},"np":{"pct":"⇣ 415%","latest":"-4.47","yearAgo":"1.42"},"eps":{"pct":"⇣ 414%","latest":"₹ -3.48","yearAgo":"₹ 1.11"},"patPct":-415},{"name":"Ontic Finserve","link":"https://www.screener.in/company/540386/#quarters","price":"1.30","mcap":"12","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"0","yearAgo":"0"},"ebidt":{"pct":"⇣ 667%","latest":"-0.23","yearAgo":"-0.03"},"np":{"pct":"⇣ 440%","latest":"-0.17","yearAgo":"0.05"},"eps":{"pct":"⇣ 300%","latest":"₹ -0.02","yearAgo":"₹ 0.01"},"patPct":-440},{"name":"Eco Hotels","link":"https://www.screener.in/company/514402/#quarters","price":"16.0","mcap":"84","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"⇡ 1800%","latest":"2.47","yearAgo":"0.13"},"ebidt":{"pct":"⇣ 108%","latest":"-4.37","yearAgo":"-2.1"},"np":{"pct":"⇣ 467%","latest":"-5.5","yearAgo":"-0.98"},"eps":{"pct":"⇣ 460%","latest":"₹ -0.84","yearAgo":"₹ -0.15"},"patPct":-467},{"name":"PropshareTitania","link":"https://www.screener.in/company/544462/#quarters","price":"1,100,000","mcap":"491","quarter":"Mar 2026","yearAgoQ":"Mar 2025","sales":{"pct":"","latest":"11.7","yearAgo":"0"},"ebidt":{"pct":"⇡ 42400%","latest":"8.46","yearAgo":"-0.02"},"np":{"pct":"⇣ 59450%","latest":"-11.9","yearAgo":"-0.02"},"eps":{"pct":"","latest":"₹ -26466.67","yearAgo":"₹ None"},"patPct":-59450}];
+
+function fmtPct(p) {
+  if (p == null) return { text: "—", cls: "flat" };
+  if (p > 0) return { text: "+" + p + "%", cls: "" };
+  if (p < 0) return { text: p + "%", cls: "neg" };
+  return { text: "0%", cls: "flat" };
+}
+function fmtChange(cell, isCurrency) {
+  if (!cell) return { text: "—", cls: "flat" };
+  // cell.pct like "⇡ 140%" or "⇣ 71%" or ""
+  const raw = cell.pct || "";
+  const isDown = raw.includes("⇣");
+  const isUp = raw.includes("⇡");
+  const m = raw.match(/(-?[\d,]+(?:\.\d+)?)%/);
+  if (!m) return { text: "—", cls: "flat" };
+  const num = parseFloat(m[1].replace(/,/g, ""));
+  const signed = isDown ? -num : num;
+  return fmtPct(signed);
+}
+function subValue(cell, latestQ, yearQ) {
+  if (!cell) return "—";
+  return `₹${cell.latest} Cr vs ₹${cell.yearAgo} Cr`;
+}
+
+function pctNum(cell) {
+  if (!cell) return null;
+  const raw = cell.pct || "";
+  const isDown = raw.includes("⇣");
+  const m = raw.match(/(-?[\d,]+(?:\.\d+)?)%/);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(/,/g, ""));
+  return isDown ? -n : n;
+}
+
+// Attach numeric pct + mcap fields for sorting/filtering
+function parseMcap(s) {
+  if (s == null) return null;
+  const n = parseFloat(String(s).replace(/,/g, ""));
+  return isNaN(n) ? null : n;
+}
+const COMPANY_SECTOR = {
+  "Onix Solar": "Other",
+  "Kesar India": "Food & Agri",
+  "Media Matrix": "Media & Entertainment",
+  "Nikki Glob.Fin.": "Banking & Finance",
+  "Yuranus Infrast.": "Infrastructure & Real Estate",
+  "Mahindra Logis.": "Other",
+  "M B Agro Prod.": "Food & Agri",
+  "Alka India": "Textiles",
+  "Ganesh Holdings": "Banking & Finance",
+  "Jindal Leasefin": "Banking & Finance",
+  "Bridge Securitie": "Banking & Finance",
+  "Navkar Corporat.": "Other",
+  "Punctual Trading": "Other",
+  "Bluestone Jewel": "Other",
+  "Prizor Viztech": "Other",
+  "Krishana Phosch.": "Chemicals & Fertilizers",
+  "Sterling & Wils.": "Other",
+  "NELCO": "Other",
+  "Anand Rathi Shar": "Asset Mgmt & Broking",
+  "Billionbrains": "Other",
+  "VST Industries": "FMCG & Consumer",
+  "Lloyds Luxuries": "Retail & Durables",
+  "Bajaj Consumer": "FMCG & Consumer",
+  "Purple Finance": "Other",
+  "Adit.Birla Money": "Asset Mgmt & Broking",
+  "Wherrelz IT": "IT & Software",
+  "Nilachal Refract": "Capital Goods & Engineering",
+  "Tips Music": "Other",
+  "Bombay Wire": "Capital Goods & Engineering",
+  "GSM Foils": "Capital Goods & Engineering",
+  "Angel One": "Asset Mgmt & Broking",
+  "SG Finserve": "Banking & Finance",
+  "P. H. Capital": "Other",
+  "Tata Inv.Corpn.": "Other",
+  "ICICI Pru Life": "Insurance",
+  "Ind Bank Housing": "Banking & Finance",
+  "CRISIL": "Banking & Finance",
+  "Yes Bank": "Banking & Finance",
+  "Tata Capital": "Other",
+  "HDB FINANC SER": "Banking & Finance",
+  "Anand Rathi Wea.": "Asset Mgmt & Broking",
+  "Havells India": "Other",
+  "Bank of Maha": "Other",
+  "Persistent Systems": "Other",
+  "Sumeru Industrie": "Other",
+  "Virgo Global": "IT & Software",
+  "Oracle Fin.Serv.": "Other",
+  "Himadri Special": "Other",
+  "Tata Elxsi": "Other",
+  "Sunteck Realty": "Other",
+  "Trent": "Other",
+  "Infosys": "Other",
+  "Swaraj Engines": "Auto & Engines",
+  "PNB Housing": "Other",
+  "Choice Intl.": "Other",
+  "Tech Mahindra": "Other",
+  "360 ONE": "Other",
+  "TCS": "IT & Software",
+  "Indian Energy Ex": "Other",
+  "Union Bank (I)": "Other",
+  "ICICI AMC": "Asset Mgmt & Broking",
+  "ICICI Bank": "Banking & Finance",
+  "HDFC Bank": "Banking & Finance",
+  "NDL Ventures": "Other",
+  "ICICI Lombard": "Insurance",
+  "Adani Energy Sol": "Other",
+  "Indosolar": "Other",
+  "HDFC Life Insur.": "Insurance",
+  "HCL Technologies": "Other",
+  "Rajratan Global": "Other",
+  "SML Mahindra": "Other",
+  "Rel. Indl. Infra": "Infrastructure & Real Estate",
+  "CIE Automotive": "Other",
+  "Jonjua Overseas": "Other",
+  "LTM": "Other",
+  "Hind.Composites": "Other",
+  "UTI AMC": "Other",
+  "Cyient": "Other",
+  "Khaitan Chemical": "Other",
+  "Tata Tele. Mah.": "Other",
+  "Aurum Proptech": "Other",
+  "Rajesh Power": "Other",
+  "Sarla Performanc": "Other",
+  "Delta Corp": "Other",
+  "Tata Comm": "Other",
+  "L&T Technology": "Other",
+  "Sangam India": "Other",
+  "Skyline Millars": "Other",
+  "Mah. Scooters": "Other",
+  "T R I L": "Other",
+  "Nestle India": "Other",
+  "Indbank Merchant": "Other",
+  "Ugro Capital": "Other",
+  "PNB Gilts": "Other",
+  "Mangalam Global": "Food & Agri",
+  "Netwrk.18 Media": "Media & Entertainment",
+  "Infomedia Press": "Media & Entertainment",
+  "Hathway Cable": "Telecom",
+  "Mastek": "IT & Software",
+  "Waaree Renewab.": "Power & Renewables",
+  "Alok Industries": "Textiles",
+  "GTPL Hathway": "Telecom",
+  "Elecon Engg.Co": "Capital Goods & Engineering",
+  "Nuvoco Vistas": "Cement",
+  "Kapil Raj Financ": "Banking & Finance",
+  "Parin Enterpris.": "Other",
+  "Aqylon Nexus": "Other",
+  "Agri-Tech India": "Food & Agri",
+  "SBI Life Insuran": "Other",
+  "Wipro": "IT & Software",
+  "HDFC AMC": "Asset Mgmt & Broking",
+  "Gujarat Hotels": "Other",
+  "EMA Partners": "Other",
+  "G M Breweries": "FMCG & Consumer",
+  "Jio Financial": "Banking & Finance",
+  "Infollion Resea.": "IT & Software",
+  "Aditya AMC": "Other",
+  "PropsharePlatina": "Infrastructure & Real Estate",
+  "Swadha Nature": "Other",
+  "Mahindra EPC": "Other",
+  "Axita Cotton": "Other",
+  "Cyient DLM": "Other",
+  "Central Mine Pla": "Other",
+  "Just Dial": "IT & Software",
+  "Den Networks": "Media & Entertainment",
+  "B2B Soft.Tech.": "IT & Software",
+  "Sanathnagar Ent.": "Capital Goods & Engineering",
+  "E2E Networks": "Other",
+  "Eimco Elecon(I)": "Capital Goods & Engineering",
+  "Bharat Coking": "Other",
+  "Techindia Nirman": "Other",
+  "National Standar": "Capital Goods & Engineering",
+  "Amal": "Other",
+  "Morarka Finance": "Other",
+  "DB Intl.Stock": "Other",
+  "PAE": "Other",
+  "Hathway Bhawani": "Capital Goods & Engineering",
+  "Tejas Networks": "Telecom",
+  "Roselabs Finance": "Banking & Finance",
+  "Cont. Controls": "Capital Goods & Engineering",
+  "Vashu Bhagnani": "Media & Entertainment",
+  "Lotus Chocolate": "FMCG & Consumer",
+  "Ontic Finserve": "Other",
+  "Eco Hotels": "Hospitality",
+  "PropshareTitania": "Infrastructure & Real Estate"
+};
+
+// Stock move from 1 Apr 2026 to dashboard refresh date (keyed by screener slug)
+const STOCK_MOVE_BASIS = "2026-04-01";
+const STOCK_MOVE_ASOF = "2026-04-24";
+const STOCK_MOVES = {
+  "500143":{"apr1":607.55,"latest":703.1,"latestDate":"2026-04-24","pct":15.73},
+  "502294":{"apr1":46.49,"latest":38.5,"latestDate":"2026-04-24","pct":-17.19},
+  "504397":{"apr1":95.35,"latest":88.0,"latestDate":"2026-04-20","pct":-7.71,"apr1Date":"2026-03-30"},
+  "504648":{"apr1":38.7,"latest":48.62,"latestDate":"2026-04-24","pct":25.63},
+  "505650":{"apr1":17.14,"latest":19.75,"latestDate":"2026-04-24","pct":15.23},
+  "506597":{"apr1":442.65,"latest":581.3,"latestDate":"2026-04-24","pct":31.32},
+  "507960":{"apr1":179.0,"latest":194.0,"latestDate":"2026-04-24","pct":8.38},
+  "509073":{"apr1":11.6,"latest":11.99,"latestDate":"2026-04-24","pct":3.36},
+  "509423":{"apr1":31.31,"latest":40.1,"latestDate":"2026-04-24","pct":28.07},
+  "511549":{"apr1":46.38,"latest":55.95,"latestDate":"2026-04-24","pct":20.63},
+  "513119":{"apr1":760.4,"latest":1021.75,"latestDate":"2026-04-24","pct":34.37},
+  "514402":{"apr1":10.4,"latest":16.0,"latestDate":"2026-04-24","pct":53.85},
+  "517230":{"apr1":19.04,"latest":22.02,"latestDate":"2026-04-20","pct":15.65,"apr1Date":"2026-03-30"},
+  "523465":{"apr1":41.0,"latest":45.51,"latestDate":"2026-04-24","pct":11.0},
+  "523475":{"apr1":602.1,"latest":723.7,"latestDate":"2026-04-24","pct":20.2},
+  "530249":{"apr1":14.07,"latest":15.65,"latestDate":"2026-04-24","pct":11.23},
+  "530445":{"apr1":1.6,"latest":1.96,"latestDate":"2026-04-24","pct":22.5},
+  "530889":{"apr1":15.6,"latest":20.87,"latestDate":"2026-04-20","pct":33.78},
+  "531039":{"apr1":11.04,"latest":10.94,"latestDate":"2026-04-13","pct":-0.91,"apr1Date":"2026-04-02"},
+  "531268":{"apr1":30.02,"latest":28.2,"latestDate":"2026-04-24","pct":-6.06},
+  "531272":{"apr1":22.05,"latest":21.61,"latestDate":"2026-04-20","pct":-2.0,"apr1Date":"2026-04-13"},
+  "531324":{"apr1":23.35,"latest":21.6,"latestDate":"2026-04-24","pct":-7.49},
+  "531460":{"apr1":9.8,"latest":8.82,"latestDate":"2026-04-24","pct":-10.0},
+  "532011":{"apr1":49.84,"latest":94.1,"latestDate":"2026-04-24","pct":88.8},
+  "532354":{"apr1":3.87,"latest":6.41,"latestDate":"2026-04-24","pct":65.63},
+  "536846":{"apr1":152.15,"latest":137.4,"latestDate":"2026-04-20","pct":-9.69,"apr1Date":"2026-03-30"},
+  "539679":{"apr1":2.92,"latest":2.8,"latestDate":"2026-04-24","pct":-4.11},
+  "539947":{"apr1":62.69,"latest":66.35,"latestDate":"2026-04-20","pct":5.84,"apr1Date":"2026-03-30"},
+  "540386":{"apr1":1.33,"latest":1.3,"latestDate":"2026-04-24","pct":-2.26},
+  "542446":{"apr1":3.17,"latest":3.67,"latestDate":"2026-04-24","pct":15.77},
+  "543436":{"apr1":173.4,"latest":156.55,"latestDate":"2026-04-15","pct":-9.72,"apr1Date":"2026-03-30"},
+  "543542":{"apr1":1169.8,"latest":1230.0,"latestDate":"2026-04-24","pct":5.15},
+  "544191":{"apr1":52.37,"latest":67.89,"latestDate":"2026-04-24","pct":29.64},
+  "544291":{"apr1":823.0,"latest":1034.0,"latestDate":"2026-04-24","pct":25.64},
+  "544295":{"apr1":1026000.0,"latest":1035000.0,"latestDate":"2026-04-23","pct":0.88,"apr1Date":"2026-04-02"},
+  "544462":{"apr1":1055000.0,"latest":1100000.0,"latestDate":"2026-04-21","pct":4.27,"apr1Date":"2026-03-30"},
+  "EMAPARTNER":{"apr1":76.05,"latest":84.9,"latestDate":"2026-04-24","pct":11.64},
+  "CIEINDIA":{"apr1":454.95,"latest":462.45,"latestDate":"2026-04-24","pct":1.65},
+  "CHOICEIN":{"apr1":640.25,"latest":702.55,"latestDate":"2026-04-24","pct":9.73},
+  "BLUESTONE":{"apr1":453.3,"latest":536.0,"latestDate":"2026-04-24","pct":18.24},
+  "LTM":{"apr1":4107.0,"latest":4272.1,"latestDate":"2026-04-24","pct":4.02},
+  "HINDCOMPOS":{"apr1":367.3,"latest":484.85,"latestDate":"2026-04-24","pct":32.0},
+  "IEX":{"apr1":119.95,"latest":124.95,"latestDate":"2026-04-24","pct":4.17},
+  "UTIAMC":{"apr1":950.5,"latest":930.55,"latestDate":"2026-04-24","pct":-2.1},
+  "INFY":{"apr1":1275.7,"latest":1165.7,"latestDate":"2026-04-24","pct":-8.62},
+  "CYIENT":{"apr1":780.45,"latest":887.5,"latestDate":"2026-04-24","pct":13.72},
+  "KHAICHEM":{"apr1":48.81,"latest":56.1,"latestDate":"2026-04-24","pct":14.94},
+  "HSCL":{"apr1":446.85,"latest":575.5,"latestDate":"2026-04-24","pct":28.79},
+  "ADANIENSOL":{"apr1":956.6,"latest":1308.8,"latestDate":"2026-04-24","pct":36.82},
+  "MAHLOG":{"apr1":348.4,"latest":414.0,"latestDate":"2026-04-24","pct":18.83},
+  "TATACAP":{"apr1":305.9,"latest":337.9,"latestDate":"2026-04-24","pct":10.46},
+  "TTML":{"apr1":35.19,"latest":43.69,"latestDate":"2026-04-24","pct":24.15},
+  "AURUM":{"apr1":165.86,"latest":185.08,"latestDate":"2026-04-24","pct":11.59},
+  "TIPSMUSIC":{"apr1":514.6,"latest":677.4,"latestDate":"2026-04-24","pct":31.64},
+  "SWSOLAR":{"apr1":163.6,"latest":212.68,"latestDate":"2026-04-24","pct":30.0},
+  "ABSLAMC":{"apr1":901.4,"latest":1060.2,"latestDate":"2026-04-24","pct":17.62},
+  "UNIONBANK":{"apr1":171.64,"latest":176.88,"latestDate":"2026-04-24","pct":3.05},
+  "SARLAPOLY":{"apr1":75.51,"latest":91.03,"latestDate":"2026-04-24","pct":20.55},
+  "PRIZOR":{"apr1":424.55,"latest":593.25,"latestDate":"2026-04-24","pct":39.74},
+  "BHARATCOAL":{"apr1":31.98,"latest":33.7,"latestDate":"2026-04-24","pct":5.38},
+  "OFSS":{"apr1":6883.0,"latest":8822.0,"latestDate":"2026-04-24","pct":28.17},
+  "DELTACORP":{"apr1":54.31,"latest":82.65,"latestDate":"2026-04-24","pct":52.18},
+  "TATACOMM":{"apr1":1390.2,"latest":1515.0,"latestDate":"2026-04-24","pct":8.98},
+  "LTTS":{"apr1":3324.0,"latest":3384.5,"latestDate":"2026-04-24","pct":1.82},
+  "SBILIFE":{"apr1":1790.5,"latest":1780.3,"latestDate":"2026-04-24","pct":-0.57},
+  "SANGAMIND":{"apr1":427.5,"latest":513.95,"latestDate":"2026-04-24","pct":20.22},
+  "HAVELLS":{"apr1":1185.9,"latest":1238.4,"latestDate":"2026-04-24","pct":4.43},
+  "TECHM":{"apr1":1404.5,"latest":1353.3,"latestDate":"2026-04-24","pct":-3.65},
+  "MAHSCOOTER":{"apr1":11261.0,"latest":12363.0,"latestDate":"2026-04-24","pct":9.79},
+  "SUNTECK":{"apr1":295.1,"latest":344.5,"latestDate":"2026-04-24","pct":16.74},
+  "TATAINVEST":{"apr1":577.1,"latest":700.65,"latestDate":"2026-04-24","pct":21.41},
+  "CMPDI":{"apr1":160.1,"latest":182.97,"latestDate":"2026-04-24","pct":14.28},
+  "TATAELXSI":{"apr1":4127.1,"latest":4190.7,"latestDate":"2026-04-24","pct":1.54},
+  "MAHEPC":{"apr1":100.66,"latest":115.42,"latestDate":"2026-04-24","pct":14.66},
+  "HCLTECH":{"apr1":1354.4,"latest":1202.2,"latestDate":"2026-04-24","pct":-11.24},
+  "PERSISTENT":{"apr1":5049.1,"latest":4774.4,"latestDate":"2026-04-24","pct":-5.44},
+  "RAJRATAN":{"apr1":362.55,"latest":424.75,"latestDate":"2026-04-24","pct":17.16},
+  "TARIL":{"apr1":274.3,"latest":319.65,"latestDate":"2026-04-24","pct":16.53},
+  "DBSTOCKBRO":{"apr1":25.96,"latest":27.25,"latestDate":"2026-04-24","pct":4.97},
+  "360ONE":{"apr1":953.05,"latest":1038.65,"latestDate":"2026-04-24","pct":8.98},
+  "CYIENTDLM":{"apr1":284.6,"latest":368.25,"latestDate":"2026-04-24","pct":29.39},
+  "NESTLEIND":{"apr1":1180.8,"latest":1416.2,"latestDate":"2026-04-24","pct":19.94},
+  "NDLVENTURE":{"apr1":121.4,"latest":118.79,"latestDate":"2026-04-24","pct":-2.15},
+  "AXITA":{"apr1":8.65,"latest":8.23,"latestDate":"2026-04-24","pct":-4.86},
+  "INDBANK":{"apr1":31.14,"latest":33.42,"latestDate":"2026-04-24","pct":7.32},
+  "WAAREEINDO":{"apr1":384.35,"latest":453.0,"latestDate":"2026-04-24","pct":17.86},
+  "NELCO":{"apr1":554.85,"latest":666.3,"latestDate":"2026-04-24","pct":20.09},
+  "PNBHOUSING":{"apr1":780.05,"latest":1027.05,"latestDate":"2026-04-24","pct":31.66},
+  "UGROCAP":{"apr1":88.83,"latest":105.3,"latestDate":"2026-04-24","pct":18.54},
+  "SMLMAH":{"apr1":3969.7,"latest":3903.5,"latestDate":"2026-04-24","pct":-1.67},
+  "PNBGILTS":{"apr1":64.06,"latest":71.36,"latestDate":"2026-04-24","pct":11.4},
+  "NAVKARCORP":{"apr1":79.48,"latest":99.22,"latestDate":"2026-04-24","pct":24.84},
+  "E2E":{"apr1":2156.7,"latest":2818.2,"latestDate":"2026-04-24","pct":30.67},
+  "MAHABANK":{"apr1":64.88,"latest":76.8,"latestDate":"2026-04-24","pct":18.37},
+  "GROWW":{"apr1":161.55,"latest":216.8,"latestDate":"2026-04-24","pct":34.2},
+  "MGEL":{"apr1":11.43,"latest":13.82,"latestDate":"2026-04-24","pct":20.91},
+  "HDFCBANK":{"apr1":742.25,"latest":784.0,"latestDate":"2026-04-24","pct":5.62},
+  "ICICIBANK":{"apr1":1212.7,"latest":1331.0,"latestDate":"2026-04-24","pct":9.76},
+  "NETWORK18":{"apr1":30.37,"latest":34.26,"latestDate":"2026-04-24","pct":12.81},
+  "YESBANK":{"apr1":17.91,"latest":19.82,"latestDate":"2026-04-24","pct":10.66},
+  "GSMFOILS":{"apr1":178.95,"latest":196.95,"latestDate":"2026-04-24","pct":10.06},
+  "INFOMEDIA":{"apr1":4.99,"latest":5.74,"latestDate":"2026-04-24","pct":15.03},
+  "HATHWAY":{"apr1":9.68,"latest":11.09,"latestDate":"2026-04-24","pct":14.57},
+  "BIRLAMONEY":{"apr1":109.18,"latest":140.5,"latestDate":"2026-04-24","pct":28.69},
+  "NATIONSTD":{"apr1":1350.7,"latest":1360.0,"latestDate":"2026-04-24","pct":0.69},
+  "JIOFIN":{"apr1":231.93,"latest":246.95,"latestDate":"2026-04-24","pct":6.48},
+  "MASTEK":{"apr1":1463.3,"latest":1698.4,"latestDate":"2026-04-24","pct":16.07},
+  "BAJAJCON":{"apr1":361.7,"latest":452.2,"latestDate":"2026-04-24","pct":25.02},
+  "CRISIL":{"apr1":3814.9,"latest":4272.6,"latestDate":"2026-04-24","pct":12.0},
+  "MBAPL":{"apr1":504.8,"latest":506.75,"latestDate":"2026-04-24","pct":0.39},
+  "LLOYDS":{"apr1":35.1,"latest":96.95,"latestDate":"2026-04-24","pct":176.21},
+  "VSTIND":{"apr1":211.13,"latest":256.8,"latestDate":"2026-04-24","pct":21.63},
+  "WAAREERTL":{"apr1":838.55,"latest":1027.2,"latestDate":"2026-04-24","pct":22.5},
+  "ANGELONE":{"apr1":240.6,"latest":311.36,"latestDate":"2026-04-24","pct":29.41},
+  "TCS":{"apr1":2408.2,"latest":2395.4,"latestDate":"2026-04-24","pct":-0.53},
+  "ALOKINDS":{"apr1":12.45,"latest":13.52,"latestDate":"2026-04-24","pct":8.59},
+  "WIPRO":{"apr1":191.18,"latest":198.59,"latestDate":"2026-04-24","pct":3.88},
+  "HDFCLIFE":{"apr1":572.95,"latest":589.8,"latestDate":"2026-04-24","pct":2.94},
+  "HDFCAMC":{"apr1":2340.5,"latest":2710.5,"latestDate":"2026-04-24","pct":15.81},
+  "SGFIN":{"apr1":450.0,"latest":534.15,"latestDate":"2026-04-24","pct":18.7},
+  "INFOLLION":{"apr1":300.0,"latest":227.5,"latestDate":"2026-04-24","pct":-24.17},
+  "RIIL":{"apr1":666.75,"latest":773.3,"latestDate":"2026-04-24","pct":15.98},
+  "GTPL":{"apr1":59.06,"latest":67.16,"latestDate":"2026-04-24","pct":13.71},
+  "TEJASNET":{"apr1":420.05,"latest":410.65,"latestDate":"2026-04-24","pct":-2.24},
+  "ICICIGI":{"apr1":1694.9,"latest":1775.5,"latestDate":"2026-04-24","pct":4.76},
+  "MMWL":{"apr1":9.35,"latest":10.34,"latestDate":"2026-04-24","pct":10.59},
+  "HDBFS":{"apr1":576.65,"latest":654.75,"latestDate":"2026-04-24","pct":13.54},
+  "ELECON":{"apr1":381.35,"latest":509.8,"latestDate":"2026-04-24","pct":33.68},
+  "NUVOCO":{"apr1":290.2,"latest":292.85,"latestDate":"2026-04-24","pct":0.91},
+  "DEN":{"apr1":24.85,"latest":27.45,"latestDate":"2026-04-24","pct":10.46},
+  "ARSSBL":{"apr1":450.15,"latest":568.0,"latestDate":"2026-04-24","pct":26.18},
+  "ICICIPRULI":{"apr1":513.35,"latest":516.35,"latestDate":"2026-04-24","pct":0.58},
+  "EIMCOELECO":{"apr1":1548.5,"latest":1645.0,"latestDate":"2026-04-24","pct":6.23},
+  "PARIN":{"apr1":565.8,"latest":652.0,"latestDate":"2026-04-24","pct":15.24},
+  "JUSTDIAL":{"apr1":516.6,"latest":525.75,"latestDate":"2026-04-24","pct":1.77},
+  "ICICIAMC":{"apr1":2857.0,"latest":3298.0,"latestDate":"2026-04-24","pct":15.44},
+  "SWARAJENG":{"apr1":3421.4,"latest":3877.1,"latestDate":"2026-04-24","pct":13.32},
+  "AQYLON":{"apr1":48.17,"latest":48.97,"latestDate":"2026-04-24","pct":1.66},
+  "AGRITECH":{"apr1":100.04,"latest":112.0,"latestDate":"2026-04-24","pct":11.96},
+  "KRISHANA":{"apr1":498.3,"latest":633.2,"latestDate":"2026-04-24","pct":27.07},
+  "GMBREW":{"apr1":1048.9,"latest":956.05,"latestDate":"2026-04-24","pct":-8.85},
+  "ANANDRATHI":{"apr1":3114.6,"latest":3577.0,"latestDate":"2026-04-24","pct":14.85},
+  "TRENT":{"apr1":3526.5,"latest":4233.8,"latestDate":"2026-04-24","pct":20.06}
+};
+function slugFromLink(link) {
+  const m = (link || "").match(/screener\.in\/company\/([^\/#]+)/);
+  return m ? m[1] : null;
+}
+
+COMPANIES.forEach(c => {
+  c.salesN = pctNum(c.sales);
+  c.ebidtN = pctNum(c.ebidt);
+  c.npN    = (c.patPct != null ? c.patPct : pctNum(c.np));
+  c.epsN   = pctNum(c.eps);
+  c.mcapN  = parseMcap(c.mcap);
+  c.sector = COMPANY_SECTOR[c.name] || "Other";
+  const sm = STOCK_MOVES[slugFromLink(c.link)];
+  c.stockMove = sm || null;
+  c.stockMoveN = sm ? sm.pct : null;
+});
+
+const SORT_META = {
+  pat:       { key: "npN",        pillText: "SORTED BY PAT % ↓",        caption: "Net Profit YoY growth" },
+  sales:     { key: "salesN",     pillText: "SORTED BY SALES % ↓",      caption: "Sales YoY growth" },
+  ebidt:     { key: "ebidtN",     pillText: "SORTED BY EBIDT % ↓",      caption: "EBIDT YoY growth" },
+  eps:       { key: "epsN",       pillText: "SORTED BY EPS % ↓",        caption: "EPS YoY growth" },
+  stockMove: { key: "stockMoveN", pillText: "SORTED BY STOCK MOVE % ↓", caption: "Stock move Apr 1 → " + STOCK_MOVE_ASOF },
+};
+
+const MCAP_BUCKETS = {
+  "all":           { label: "All market caps",        min: null, max: null },
+  "<100":          { label: "Below 100 Cr",           min: null, max: 100 },
+  "100-500":       { label: "101 Cr to 500 Cr",       min: 101,  max: 500 },
+  "500-1000":      { label: "501 Cr to 1000 Cr",      min: 501,  max: 1000 },
+  "1000-5000":     { label: "1001 Cr to 5000 Cr",     min: 1001, max: 5000 },
+  "5000-10000":    { label: "5000 Cr to 10000 Cr",    min: 5001, max: 10000 },
+  "10000-100000":  { label: "10000 Cr to 100000 Cr",  min: 10001, max: 100000 },
+  "100000+":       { label: "100000 Cr and above",    min: 100001, max: null },
+};
+
+function inBucket(mcapN, bucketKey) {
+  const b = MCAP_BUCKETS[bucketKey] || MCAP_BUCKETS.all;
+  if (b.min == null && b.max == null) return true;
+  if (mcapN == null) return false;
+  if (b.min != null && mcapN < b.min) return false;
+  if (b.max != null && mcapN > b.max) return false;
+  return true;
+}
+
+function card(c, idx, sortKey) {
+  const activeVal = c[SORT_META[sortKey].key];
+  const isNeg = (activeVal ?? 0) < 0;
+  const patFmt = fmtPct(c.patPct);
+  const salesFmt = fmtChange(c.sales);
+  const ebidtFmt = fmtChange(c.ebidt);
+  const epsFmt = fmtChange(c.eps);
+  const smFmt = c.stockMoveN == null ? { text: "—", cls: "flat" } : fmtPct(+c.stockMoveN.toFixed(2));
+  const smSub = c.stockMove ? `₹${c.stockMove.apr1.toFixed(2)} → ₹${c.stockMove.latest.toFixed(2)} (as of ${c.stockMove.latestDate.slice(5).replace('-','/')})` : '—';
+  const hl = sortKey;
+  return `
+    <div class="card ${isNeg ? 'neg' : ''}">
+      <div class="rank">#${idx + 1}</div>
+      <div class="head">
+        <div class="name"><a href="${c.link}" target="_blank">${c.name}</a></div>
+        <div class="price-wrap">
+          <div class="price">₹${c.price}</div>
+          <div class="mcap">MCap ₹${c.mcap} Cr</div>
+        </div>
+      </div>
+      <div class="meta">
+        <span>Quarter <b>${c.quarter}</b></span>
+        <span>YOY vs <b>${c.yearAgoQ}</b></span>
+        <span class="sector-tag">${c.sector || '—'}</span>
+      </div>
+      <div class="metrics">
+        <div class="metric ${hl === 'pat' ? 'pat' : ''} ${hl === 'pat' && isNeg ? 'neg' : ''}">
+          <div class="label">Net Profit YOY</div>
+          <div class="val ${patFmt.cls}">${patFmt.text}</div>
+          <div class="sub">${c.np ? `₹${c.np.latest} Cr vs ₹${c.np.yearAgo} Cr` : '—'}</div>
+        </div>
+        <div class="metric ${hl === 'sales' ? 'pat' : ''} ${hl === 'sales' && isNeg ? 'neg' : ''}">
+          <div class="label">Sales YOY</div>
+          <div class="val ${salesFmt.cls}">${salesFmt.text}</div>
+          <div class="sub">${c.sales ? `₹${c.sales.latest} Cr vs ₹${c.sales.yearAgo} Cr` : '—'}</div>
+        </div>
+        <div class="metric ${hl === 'ebidt' ? 'pat' : ''} ${hl === 'ebidt' && isNeg ? 'neg' : ''}">
+          <div class="label">EBIDT YOY</div>
+          <div class="val ${ebidtFmt.cls}">${ebidtFmt.text}</div>
+          <div class="sub">${c.ebidt ? `₹${c.ebidt.latest} Cr vs ₹${c.ebidt.yearAgo} Cr` : '—'}</div>
+        </div>
+        <div class="metric ${hl === 'eps' ? 'pat' : ''} ${hl === 'eps' && isNeg ? 'neg' : ''}">
+          <div class="label">EPS YOY</div>
+          <div class="val ${epsFmt.cls}">${epsFmt.text}</div>
+          <div class="sub">${c.eps ? `${c.eps.latest} vs ${c.eps.yearAgo}` : '—'}</div>
+        </div>
+        <div class="metric stockmove ${hl === 'stockMove' ? 'pat' : ''} ${hl === 'stockMove' && isNeg ? 'neg' : ''}">
+          <div class="label">Stock Move (Apr 1 → ${STOCK_MOVE_ASOF.slice(5).replace('-','/')})</div>
+          <div class="val ${smFmt.cls}">${smFmt.text}</div>
+          <div class="sub">${smSub}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function render(sortKey, mcapKey, sectorKey) {
+  sortKey = sortKey || document.getElementById("sortSel").value || "pat";
+  mcapKey = mcapKey || document.getElementById("mcapSel").value || "all";
+  sectorKey = sectorKey || document.getElementById("sectorSel").value || "all";
+  const meta = SORT_META[sortKey] || SORT_META.pat;
+  const bucket = MCAP_BUCKETS[mcapKey] || MCAP_BUCKETS.all;
+  const key = meta.key;
+  const filtered = COMPANIES.filter(c =>
+    inBucket(c.mcapN, mcapKey) &&
+    (sectorKey === "all" || c.sector === sectorKey)
+  );
+  const sorted = filtered.slice().sort((a, b) => {
+    const av = a[key], bv = b[key];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return bv - av;
+  });
+  document.getElementById("grid").innerHTML = sorted.map((c, i) => card(c, i, sortKey)).join("");
+  const filterParts = [];
+  if (mcapKey !== "all") filterParts.push(bucket.label);
+  if (sectorKey !== "all") filterParts.push(sectorKey);
+  const isFiltered = filterParts.length > 0;
+  const filterSuffix = isFiltered ? ` · ${filterParts.join(" · ")}` : "";
+  document.getElementById("count").textContent = sorted.length + " companies" + (isFiltered ? ` (of ${COMPANIES.length})` : "");
+  document.getElementById("sortPillText").textContent = meta.pillText + filterSuffix.toUpperCase();
+  document.getElementById("sortCaption").textContent = meta.caption + (isFiltered ? `, filtered to ${filterParts.join(" · ")}` : "");
+}
+
+document.getElementById("sortSel").addEventListener("change", () => render());
+document.getElementById("mcapSel").addEventListener("change", () => render());
+document.getElementById("sectorSel").addEventListener("change", () => render());
+render("pat", "all", "all");
+</script>
+</body>
+</html>
