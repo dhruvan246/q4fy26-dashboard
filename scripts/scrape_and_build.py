@@ -1,28 +1,22 @@
 #!/usr/bin/env python3
 """
-Daily cloud refresh of the Q4 FY26 dashboard — v3.
+Daily cloud refresh of the Q4 FY26 dashboard — v4 (parallelized).
 
-Cloud-only architecture (no local scraping dependency):
+Same data flow as v3 but with concurrent HTTP to fit inside the GH Actions
+20-minute timeout:
 
-  1. Discover all Q4 FY26 filings from BSE AnnSubCategory API
-     (strCat=Result, subcategory=Financial Results).
-  2. Map each SCRIP_CD -> ticker via BSE ComHeaderNew `SecurityId`.
-  3. Fetch screener.in /company/{ticker}/ for financial metrics
-     (Sales/EBIDT/NP/EPS blocks with cur/prev/yoy + pct).
-  4. Fetch Apr 1 + latest daily close from Yahoo Finance v8 chart.
-  5. Merge into index.html's COMPANIES + STOCK_MOVES + banner, rewrite.
-
-Existing companies keep their prior financial data unless a fresh screener
-parse succeeds — then we overwrite with fresher numbers. Prices are always
-refreshed via Yahoo.
+  * BSE ticker lookups: 12-way ThreadPool (~216 calls → ~20s).
+  * Per-slug fetch (screener + Yahoo): 10-way ThreadPool (~300 slugs → ~3 min).
 """
 import json
 import os
 import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from threading import Lock
 
 import requests
 
@@ -45,9 +39,16 @@ TODAY_IST = datetime.now(IST).date()
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX_HTML = REPO_ROOT / "index.html"
 
+PRINT_LOCK = Lock()
+
+
+def log(msg):
+    with PRINT_LOCK:
+        print(msg, flush=True)
+
 
 # ===================================================================== #
-# BSE: discovery + SCRIP_CD -> ticker
+# BSE
 # ===================================================================== #
 def bse_pagination(session, from_date='20260301', to_date=None, max_pages=20):
     to_date = to_date or TODAY_IST.strftime('%Y%m%d')
@@ -62,22 +63,21 @@ def bse_pagination(session, from_date='20260301', to_date=None, max_pages=20):
         try:
             r = session.get(url, headers=BSE_H, timeout=20)
         except requests.RequestException as e:
-            print(f'[bse] page{p} error: {e}', flush=True)
+            log(f'[bse] page{p} error: {e}')
             break
         if r.status_code != 200:
-            print(f'[bse] page{p} status={r.status_code}', flush=True)
+            log(f'[bse] page{p} status={r.status_code}')
             break
         try:
             j = r.json()
         except Exception as e:
-            print(f'[bse] page{p} json_err={e}', flush=True)
+            log(f'[bse] page{p} json_err={e}')
             break
         tbl = j.get('Table') or []
         rows.extend(tbl)
         if len(tbl) < 50:
             break
-        time.sleep(0.3)
-    # dedup by SCRIP_CD, keep the most recent filing per code
+        time.sleep(0.2)
     by_cd = {}
     for r in rows:
         cd = str(r.get('SCRIP_CD') or '').strip()
@@ -86,18 +86,19 @@ def bse_pagination(session, from_date='20260301', to_date=None, max_pages=20):
         prev = by_cd.get(cd)
         if not prev or (r.get('NEWS_DT') or '') > (prev.get('NEWS_DT') or ''):
             by_cd[cd] = r
-    print(f'[bse] pages pulled rows={len(rows)} unique_scrip_cd={len(by_cd)}',
-          flush=True)
+    log(f'[bse] pages pulled rows={len(rows)} unique_scrip_cd={len(by_cd)}')
     return by_cd
 
 
-def bse_ticker(session, scrip_cd):
-    """Return (ticker, company_name) or (None, None)."""
-    for endpoint in ('ComHeaderNew/w', 'ComHeader/w', 'ComHeadernew/w'):
+def bse_ticker_one(scrip_cd):
+    """Single-shot ticker lookup used inside a ThreadPool."""
+    sess = requests.Session()
+    sess.headers.update(BSE_H)
+    for endpoint in ('ComHeaderNew/w', 'ComHeader/w'):
         url = (f'https://api.bseindia.com/BseIndiaAPI/api/{endpoint}'
                f'?quotetype=EQ&scripcode={scrip_cd}&seriesid=')
         try:
-            r = session.get(url, headers=BSE_H, timeout=12)
+            r = sess.get(url, timeout=12)
         except requests.RequestException:
             continue
         if r.status_code != 200:
@@ -111,12 +112,25 @@ def bse_ticker(session, scrip_cd):
         tkr = j.get('SecurityId') or j.get('scrip_id') or j.get('SC_ID')
         nm = j.get('Scripname') or j.get('Comp_Name') or j.get('COMPANY_NAME')
         if tkr:
-            return str(tkr).strip(), (str(nm).strip() if nm else None)
-    return None, None
+            return (scrip_cd, str(tkr).strip(),
+                    (str(nm).strip() if nm else None))
+    return (scrip_cd, None, None)
+
+
+def bse_tickers_parallel(scrip_cds, workers=12):
+    out = {}
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = [ex.submit(bse_ticker_one, cd) for cd in scrip_cds]
+        for i, f in enumerate(as_completed(futs), 1):
+            cd, tkr, nm = f.result()
+            out[cd] = (tkr, nm)
+            if i % 50 == 0:
+                log(f'[bse_ticker] {i}/{len(scrip_cds)}')
+    return out
 
 
 # ===================================================================== #
-# Screener: quarterly-results parser
+# Screener parser
 # ===================================================================== #
 QUARTER_RE = re.compile(r'\b([A-Z][a-z]{2} \d{4})\b')
 
@@ -142,29 +156,22 @@ def _pct(cur, yoy):
 
 
 def parse_screener_quarters(html):
-    """Return dict: {name, price, mcap, pe, cq, pq, yq, sa, eb, np, ep}
-       or None if page unparsable."""
-    # name
     m_h1 = re.search(r'<h1[^>]*>\s*([^<]+?)\s*</h1>', html)
     name = _clean(m_h1.group(1)) if m_h1 else None
 
-    # quarters section
     qm = re.search(r'id="quarters"[\s\S]*?</section>', html)
     if not qm:
         return None
     q = qm.group(0)
 
-    # thead quarter labels
     thead = re.search(r'<thead[\s\S]*?</thead>', q)
     if not thead:
         return None
     labels = [_clean(x) for x in re.findall(r'<th[^>]*>([\s\S]*?)</th>', thead.group(0))]
-    # drop empty leading label column
     quarter_labels = [l for l in labels if QUARTER_RE.match(l)]
     if len(quarter_labels) < 2:
         return None
 
-    # tbody rows
     tbody = re.search(r'<tbody[\s\S]*?</tbody>', q)
     if not tbody:
         return None
@@ -175,8 +182,7 @@ def parse_screener_quarters(html):
         if not cells:
             continue
         label = cells[0].rstrip('+ ').strip()
-        values = cells[1:]
-        row_map[label] = values
+        row_map[label] = cells[1:]
 
     def row(*keys):
         for k in keys:
@@ -189,7 +195,6 @@ def parse_screener_quarters(html):
         return None
 
     sales_row = row('Sales', 'Revenue')
-    # For banks, "Operating Profit" is "Financing Profit"; we keep separate key
     op_row = row('Operating Profit', 'Financing Profit')
     np_row = row('Net Profit')
     eps_row = row('EPS in Rs', 'EPS')
@@ -197,9 +202,6 @@ def parse_screener_quarters(html):
     if not any([sales_row, op_row, np_row, eps_row]):
         return None
 
-    # Align values to quarter_labels. values length may not equal quarter_labels
-    # length (some rows have fewer cells for missing quarters). Map by alignment
-    # from the right.
     def aligned(vals):
         if not vals:
             return {}
@@ -211,12 +213,8 @@ def parse_screener_quarters(html):
     np_vals = aligned(np_row) if np_row else {}
     eps_vals = aligned(eps_row) if eps_row else {}
 
-    # Current quarter = last quarter_label
-    if not quarter_labels:
-        return None
     cq = quarter_labels[-1]
     pq = quarter_labels[-2] if len(quarter_labels) >= 2 else None
-    # year-ago: same month, one year earlier
     cq_month = cq.split(' ')[0]
     cq_year = int(cq.split(' ')[1])
     yoy_label = f'{cq_month} {cq_year - 1}'
@@ -232,7 +230,6 @@ def parse_screener_quarters(html):
         pct = _pct(cur, yoy)
         return {'pct': pct, 'cur': cur, 'prev': prev, 'yoy': yoy}
 
-    # Price / mcap / pe from top ratio cards
     def top_num(*patterns):
         for pat in patterns:
             m = re.search(pat, html)
@@ -247,38 +244,32 @@ def parse_screener_quarters(html):
     pe = top_num(r'Stock P/E[\s\S]{0,250}?<span[^>]*class="number"[^>]*>([^<]+)</span>')
 
     return {
-        'name': name,
-        'price': price,
-        'mcap': mcap,
-        'pe': pe,
-        'cq': cq,
-        'pq': pq,
-        'yq': yq,
-        'sa': block(sales_vals),
-        'eb': block(op_vals),
-        'np': block(np_vals),
-        'ep': block(eps_vals),
+        'name': name, 'price': price, 'mcap': mcap, 'pe': pe,
+        'cq': cq, 'pq': pq, 'yq': yq,
+        'sa': block(sales_vals), 'eb': block(op_vals),
+        'np': block(np_vals), 'ep': block(eps_vals),
     }
 
 
-def fetch_screener(session, slug):
+def fetch_screener(slug):
+    sess = requests.Session()
+    sess.headers.update(HEADERS)
     for path in (f'/company/{slug}/consolidated/', f'/company/{slug}/'):
         url = f'https://www.screener.in{path}'
         try:
-            r = session.get(url, headers=HEADERS, timeout=25)
+            r = sess.get(url, timeout=25)
         except requests.RequestException:
             continue
         if r.status_code != 200 or len(r.text) < 30000:
             continue
         parsed = parse_screener_quarters(r.text)
         if parsed:
-            parsed['_path'] = path
             return parsed
     return None
 
 
 # ===================================================================== #
-# Yahoo Finance prices
+# Yahoo
 # ===================================================================== #
 def _pick_apr1_and_latest(timestamps, closes):
     pairs = []
@@ -333,8 +324,9 @@ def yahoo_chart(session, symbol):
     return None
 
 
-def yahoo_for_slug(session, slug, cached_sym=None):
-    tried = []
+def yahoo_for_slug(slug, cached_sym=None):
+    sess = requests.Session()
+    sess.headers.update(HEADERS)
     cands = []
     if cached_sym:
         cands.append(cached_sym)
@@ -343,16 +335,30 @@ def yahoo_for_slug(session, slug, cached_sym=None):
         if s not in cands:
             cands.append(s)
     for sym in cands:
-        tried.append(sym)
-        sm = yahoo_chart(session, sym)
+        sm = yahoo_chart(sess, sym)
         if sm:
             return sm
-        time.sleep(0.1)
     return None
 
 
 # ===================================================================== #
-# Load/merge index.html
+# Per-slug worker
+# ===================================================================== #
+def process_slug(slug, cached_sym, bse_name, is_existing, existing_card):
+    parsed = fetch_screener(slug)
+    if parsed:
+        card = parsed_to_card(slug, parsed, fallback_name=bse_name)
+    elif is_existing and existing_card:
+        card = existing_card
+    else:
+        card = bse_only_card(slug, bse_name)
+
+    sm = yahoo_for_slug(slug, cached_sym)
+    return (slug, card, sm, parsed is not None)
+
+
+# ===================================================================== #
+# Load existing
 # ===================================================================== #
 def load_existing(html):
     companies = []
@@ -361,14 +367,14 @@ def load_existing(html):
         try:
             companies = json.loads(m.group(1))
         except Exception as e:
-            print(f'[warn] COMPANIES parse failed: {e}', flush=True)
+            log(f'[warn] COMPANIES parse failed: {e}')
     stock_moves = {}
     m = re.search(r'const STOCK_MOVES = (\{.*?\n\});', html, re.DOTALL)
     if m:
         try:
             stock_moves = json.loads(m.group(1))
         except Exception as e:
-            print(f'[warn] STOCK_MOVES parse failed: {e}', flush=True)
+            log(f'[warn] STOCK_MOVES parse failed: {e}')
     return companies, stock_moves
 
 
@@ -378,7 +384,7 @@ def slug_from_link(link):
 
 
 # ===================================================================== #
-# Card formatting (mirrors local rebuild_145.py)
+# Card formatting
 # ===================================================================== #
 def fmt_pct(p):
     if p is None:
@@ -446,7 +452,6 @@ def build_link(slug):
 
 
 def parsed_to_card(slug, parsed, fallback_name=None):
-    """Turn a screener-parsed dict into a dashboard card."""
     name = parsed.get('name') or fallback_name or slug
     sa = fmt_cell(parsed.get('sa'))
     eb = fmt_cell(parsed.get('eb'))
@@ -460,23 +465,17 @@ def parsed_to_card(slug, parsed, fallback_name=None):
         'mcap': fmt_mcap(parsed.get('mcap')),
         'quarter': parsed.get('cq', 'Mar 2026'),
         'yearAgoQ': parsed.get('yq', 'Mar 2025'),
-        'sales': sa,
-        'ebidt': eb,
-        'np': npb,
-        'eps': ep,
+        'sales': sa, 'ebidt': eb, 'np': npb, 'eps': ep,
         'patPct': pat_pct if pat_pct is not None else 0,
     }
 
 
 def bse_only_card(slug, name):
-    """Stub card for companies we can't parse from screener."""
     return {
         'name': name or slug,
         'link': build_link(slug),
-        'price': '-',
-        'mcap': '-',
-        'quarter': 'Mar 2026',
-        'yearAgoQ': 'Mar 2025',
+        'price': '-', 'mcap': '-',
+        'quarter': 'Mar 2026', 'yearAgoQ': 'Mar 2025',
         'sales': {'pct': '', 'latest': '-', 'yearAgo': '-'},
         'ebidt': {'pct': '', 'latest': '-', 'yearAgo': '-'},
         'np': {'pct': '', 'latest': '-', 'yearAgo': '-'},
@@ -486,7 +485,7 @@ def bse_only_card(slug, name):
 
 
 # ===================================================================== #
-# Build STOCK_MOVES + HTML rewrite
+# Rewrite HTML
 # ===================================================================== #
 def build_stock_moves_block(sm_map):
     lines = []
@@ -514,7 +513,6 @@ def _fmt_date(iso):
 
 
 def rewrite_html(html, companies, stock_moves, latest_close_iso):
-    # Sort companies by patPct desc for initial view
     companies_sorted = sorted(
         companies,
         key=lambda c: c['patPct'] if c['patPct'] is not None else -1e9,
@@ -523,37 +521,28 @@ def rewrite_html(html, companies, stock_moves, latest_close_iso):
     companies_js = ','.join(
         json.dumps(c, ensure_ascii=False, separators=(',', ':')) for c in companies_sorted
     )
-    html = re.sub(
-        r'const COMPANIES = \[.*?\];',
-        f'const COMPANIES = [{companies_js}];',
-        html, count=1, flags=re.DOTALL,
-    )
+    html = re.sub(r'const COMPANIES = \[.*?\];',
+                  f'const COMPANIES = [{companies_js}];',
+                  html, count=1, flags=re.DOTALL)
 
     sm_block = build_stock_moves_block(stock_moves)
-    html = re.sub(
-        r'const STOCK_MOVES = \{.*?\n\};',
-        f'const STOCK_MOVES = {{\n{sm_block}\n}};',
-        html, count=1, flags=re.DOTALL,
-    )
-    html = re.sub(
-        r'const STOCK_MOVE_ASOF = "[^"]*";',
-        f'const STOCK_MOVE_ASOF = "{latest_close_iso}";',
-        html, count=1,
-    )
+    html = re.sub(r'const STOCK_MOVES = \{.*?\n\};',
+                  f'const STOCK_MOVES = {{\n{sm_block}\n}};',
+                  html, count=1, flags=re.DOTALL)
+    html = re.sub(r'const STOCK_MOVE_ASOF = "[^"]*";',
+                  f'const STOCK_MOVE_ASOF = "{latest_close_iso}";',
+                  html, count=1)
 
     refresh_label = _fmt_date(TODAY_IST.isoformat())
     close_label = _fmt_date(latest_close_iso)
-    html = re.sub(
-        r'Refreshed \d+ \w+ 2026[^<]*</span>',
-        f'Refreshed {refresh_label} · last trading day {close_label} · Jan–Mar 2026</span>',
-        html, count=1,
-    )
+    html = re.sub(r'Refreshed \d+ \w+ 2026[^<]*</span>',
+                  f'Refreshed {refresh_label} · last trading day {close_label} · Jan–Mar 2026</span>',
+                  html, count=1)
     html = re.sub(
         r'Q4 FY26 results fetched \d+ \w+ 2026 \(\d+ companies\) · stock moves refreshed \d+ \w+ 2026 \(last close [^)]*\)',
         f'Q4 FY26 results fetched {refresh_label} ({len(companies)} companies) · '
         f'stock moves refreshed {refresh_label} (last close {close_label})',
-        html, count=1,
-    )
+        html, count=1)
     return html
 
 
@@ -563,95 +552,97 @@ def rewrite_html(html, companies, stock_moves, latest_close_iso):
 def main():
     session = requests.Session()
     session.headers.update(HEADERS)
-    print(f'[run] today_ist={TODAY_IST.isoformat()} source=BSE+Screener+Yahoo',
-          flush=True)
+    log(f'[run] today_ist={TODAY_IST.isoformat()} source=BSE+Screener+Yahoo v4')
 
     if not INDEX_HTML.exists():
-        print(f'[fatal] no index.html at {INDEX_HTML}', flush=True)
+        log(f'[fatal] no index.html at {INDEX_HTML}')
         sys.exit(3)
 
     html = INDEX_HTML.read_text(encoding='utf-8')
     existing, prev_sm = load_existing(html)
-    print(f'[existing] companies={len(existing)} stock_moves={len(prev_sm)}',
-          flush=True)
+    log(f'[existing] companies={len(existing)} stock_moves={len(prev_sm)}')
 
-    # Existing slug -> company dict
     existing_by_slug = {}
     for c in existing:
         s = slug_from_link(c.get('link', ''))
         if s:
             existing_by_slug[s] = c
 
-    # Discovery via BSE
+    # Phase 1: BSE pagination
+    t0 = time.time()
     bse_map = bse_pagination(session)
-    print(f'[bse] discovered_scrip_cd={len(bse_map)}', flush=True)
+    log(f'[phase1] bse_pagination done in {time.time()-t0:.1f}s discovered={len(bse_map)}')
 
-    # Build slug -> bse_row mapping (ticker is our slug candidate)
+    # Phase 2: BSE ticker parallel lookup
+    t0 = time.time()
+    cd_list = list(bse_map.keys())
+    ticker_map = bse_tickers_parallel(cd_list, workers=12)
+    log(f'[phase2] bse_tickers done in {time.time()-t0:.1f}s')
+
     slug_to_bse = {}
-    for cd, row in bse_map.items():
-        tkr, nm = bse_ticker(session, cd)
-        if not tkr:
-            tkr = cd  # fall back to numeric code as slug
-        slug = tkr
-        # If this slug is already known from existing, keep the existing's exact slug
+    for cd, (tkr, nm) in ticker_map.items():
+        slug = tkr or cd
         if slug in existing_by_slug:
             slug_to_bse[slug] = {'bse_name': nm, 'scrip_cd': cd}
         elif cd in existing_by_slug:
             slug_to_bse[cd] = {'bse_name': nm, 'scrip_cd': cd}
         else:
             slug_to_bse[slug] = {'bse_name': nm, 'scrip_cd': cd}
-        time.sleep(0.1)
 
-    # Union of existing slugs + newly-discovered
     all_slugs = set(existing_by_slug.keys()) | set(slug_to_bse.keys())
-    print(f'[union] total_slugs={len(all_slugs)} existing={len(existing_by_slug)} '
-          f'new={len(all_slugs) - len(existing_by_slug)}', flush=True)
+    log(f'[union] total_slugs={len(all_slugs)} existing={len(existing_by_slug)} '
+        f'new={len(all_slugs) - len(existing_by_slug)}')
 
-    # Fetch screener + Yahoo for each slug
+    # Phase 3: parallel per-slug screener + Yahoo
+    t0 = time.time()
     companies_new = []
     stock_moves_new = {}
-    for i, slug in enumerate(sorted(all_slugs), 1):
-        # Screener
-        parsed = fetch_screener(session, slug)
-        # Build card
-        if parsed:
-            card = parsed_to_card(slug, parsed,
-                                  fallback_name=slug_to_bse.get(slug, {}).get('bse_name'))
-        elif slug in existing_by_slug:
-            card = existing_by_slug[slug]  # keep prior
-        else:
-            bse_nm = slug_to_bse.get(slug, {}).get('bse_name')
-            card = bse_only_card(slug, bse_nm)
-        companies_new.append(card)
+    done = 0
+    screener_ok = 0
+    yahoo_ok = 0
+    slugs_list = sorted(all_slugs)
 
-        # Yahoo prices
-        cached_sym = (prev_sm.get(slug) or {}).get('_sym')
-        sm = yahoo_for_slug(session, slug, cached_sym)
-        if sm:
-            stock_moves_new[slug] = sm
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futs = {
+            ex.submit(
+                process_slug,
+                slug,
+                (prev_sm.get(slug) or {}).get('_sym'),
+                slug_to_bse.get(slug, {}).get('bse_name'),
+                slug in existing_by_slug,
+                existing_by_slug.get(slug),
+            ): slug
+            for slug in slugs_list
+        }
+        for f in as_completed(futs):
+            slug, card, sm, scr_ok = f.result()
+            companies_new.append(card)
+            if sm:
+                stock_moves_new[slug] = sm
+                yahoo_ok += 1
+            if scr_ok:
+                screener_ok += 1
+            done += 1
+            if done % 30 == 0:
+                log(f'[phase3] {done}/{len(slugs_list)} scr_ok={screener_ok} yh_ok={yahoo_ok} '
+                    f'elapsed={time.time()-t0:.0f}s')
 
-        if i % 20 == 0:
-            ok_scr = sum(1 for c in companies_new
-                         if c['sales']['latest'] not in ('-', '0.00'))
-            print(f'[progress] {i}/{len(all_slugs)} screener_ok={ok_scr} '
-                  f'yahoo_ok={len(stock_moves_new)}', flush=True)
-        time.sleep(0.15)
+    log(f'[phase3] done in {time.time()-t0:.1f}s scr_ok={screener_ok} yh_ok={yahoo_ok}')
 
     if not stock_moves_new:
-        print('[fatal] no stock moves refreshed', flush=True)
+        log('[fatal] no stock moves refreshed')
         sys.exit(5)
 
     latest_close = max(
         (sm['ld'] for sm in stock_moves_new.values() if sm.get('ld')),
         default=TODAY_IST.isoformat(),
     )
-    print(f'[summary] companies={len(companies_new)} '
-          f'stock_moves={len(stock_moves_new)} '
-          f'last_close={latest_close}', flush=True)
+    log(f'[summary] companies={len(companies_new)} stock_moves={len(stock_moves_new)} '
+        f'last_close={latest_close}')
 
     new_html = rewrite_html(html, companies_new, stock_moves_new, latest_close)
     INDEX_HTML.write_text(new_html, encoding='utf-8')
-    print(f'[done] wrote {INDEX_HTML} size={len(new_html)}', flush=True)
+    log(f'[done] wrote {INDEX_HTML} size={len(new_html)}')
 
 
 if __name__ == '__main__':
